@@ -1,0 +1,27 @@
+﻿# Variables privadas
+.env
+.env.*
+!.env.example
+
+# Angular
+node_modules/
+dist/
+.angular/
+coverage/
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# Base de datos local
+*.db
+*.sqlite
+*.sqlite3
+
+# Archivos del equipo
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
