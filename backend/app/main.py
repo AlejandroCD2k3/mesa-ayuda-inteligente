@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from sqlmodel import Session, select
 
 from .clasificacion import clasificar_ticket
+from .sesiones_demo import router as router_demo
 from .database import get_session, init_db
 from .soluciones import sugerir_solucion
 from .models import CategoriaTicket, EstadoTicket, Ticket, ahora_utc
@@ -20,6 +21,8 @@ app = FastAPI(
     title="Mesa de Ayuda Inteligente",
     lifespan=lifespan,
 )
+
+app.include_router(router_demo)
 
 
 @app.get("/api/health", include_in_schema=False)
