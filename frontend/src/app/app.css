@@ -1,48 +1,4 @@
-﻿:host {
+:host {
   display: block;
   min-height: 100vh;
-  background: #f5f8fc;
-  color: #182b46;
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-.pagina {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 12vh 28px;
-}
-
-.etiqueta {
-  color: #286ba6;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-h1 {
-  margin: 18px 0 12px;
-  font-size: clamp(28px, 5vw, 44px);
-}
-
-.descripcion {
-  color: #526379;
-  line-height: 1.6;
-}
-
-.estado {
-  margin-top: 36px;
-  padding-left: 14px;
-  border-left: 4px solid #8493a5;
-  font-weight: 600;
-}
-
-.correcto {
-  border-color: #21875b;
-  color: #17623f;
-}
-
-.error {
-  border-color: #c94d4d;
-  color: #a02f2f;
 }
