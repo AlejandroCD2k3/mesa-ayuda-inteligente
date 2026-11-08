@@ -5,8 +5,9 @@ from sqlmodel import Session, select
 
 from .clasificacion import clasificar_ticket
 from .database import get_session, init_db
-from .models import Ticket, ahora_utc
-from .schemas import TicketCreate, TicketUpdate
+from .soluciones import sugerir_solucion
+from .models import CategoriaTicket, EstadoTicket, Ticket, ahora_utc
+from .schemas import ConfirmacionSolucion, TicketCreate, TicketUpdate
 
 
 @asynccontextmanager
@@ -27,19 +28,27 @@ def health():
     return {"status": "ok"}
 
 
+def preparar_ticket(ticket: Ticket) -> None:
+    categoria, motivo = clasificar_ticket(
+        ticket.origen_sistema, ticket.asunto, ticket.descripcion
+    )
+
+    ticket.categoria = categoria
+    ticket.motivo_clasificacion = motivo
+    ticket.respuesta_sugerida = sugerir_solucion(categoria)
+    ticket.estado = (
+        EstadoTicket.PENDIENTE_CONFIRMACION
+        if ticket.respuesta_sugerida
+        else EstadoTicket.ABIERTO
+    )
+
 @app.post("/api/tickets", response_model=Ticket, status_code=201)
 def crear_ticket(
     datos: TicketCreate,
     session: Session = Depends(get_session),
 ):
-    categoria, motivo = clasificar_ticket(
-        datos.origen_sistema, datos.asunto, datos.descripcion
-    )
-    ticket = Ticket(
-        **datos.model_dump(),
-        categoria=categoria,
-        motivo_clasificacion=motivo,
-    )
+    ticket = Ticket(**datos.model_dump())
+    preparar_ticket(ticket)
 
     session.add(ticket)
     session.commit()
@@ -79,12 +88,56 @@ def actualizar_ticket(
     if ticket is None:
         raise HTTPException(status_code=404, detail="Ticket no encontrado")
 
+    if ticket.estado != EstadoTicket.ABIERTO:
+        raise HTTPException(
+            status_code=409,
+            detail="El ticket no admite ediciones en su estado actual.",
+        )
+
     for campo, valor in datos.model_dump(exclude_unset=True).items():
         setattr(ticket, campo, valor)
 
-    ticket.categoria, ticket.motivo_clasificacion = clasificar_ticket(
-        ticket.origen_sistema, ticket.asunto, ticket.descripcion
-    )
+    preparar_ticket(ticket)
+    ticket.fecha_actualizacion = ahora_utc()
+
+    session.add(ticket)
+    session.commit()
+    session.refresh(ticket)
+
+    return ticket
+
+@app.post("/api/tickets/{ticket_id}/confirmacion", response_model=Ticket)
+def confirmar_solucion(
+    ticket_id: int,
+    datos: ConfirmacionSolucion,
+    session: Session = Depends(get_session),
+):
+    ticket = session.get(Ticket, ticket_id)
+
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+
+    if (
+        ticket.categoria != CategoriaTicket.AUTO
+        or ticket.estado != EstadoTicket.PENDIENTE_CONFIRMACION
+        or not ticket.respuesta_sugerida
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="El ticket no tiene una solucion pendiente de confirmacion.",
+        )
+
+    if datos.resuelta:
+        ticket.estado = EstadoTicket.RESUELTO
+    else:
+        ticket.categoria = CategoriaTicket.FUNCIONAL
+        ticket.estado = EstadoTicket.EN_ATENCION
+        ticket.responsable = "soporte_funcional"
+        ticket.motivo_clasificacion = (
+            "La solucion automatica fue rechazada por el solicitante; "
+            "se remite a atencion funcional."
+        )
+
     ticket.fecha_actualizacion = ahora_utc()
 
     session.add(ticket)
