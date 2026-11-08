@@ -1,6 +1,7 @@
-﻿from pathlib import Path
+﻿from collections.abc import Iterator
+from pathlib import Path
 
-from sqlmodel import create_engine
+from sqlmodel import Session, create_engine
 
 from .models import Ticket
 
@@ -15,3 +16,8 @@ engine = create_engine(
 
 def init_db() -> None:
     Ticket.metadata.create_all(engine)
+
+
+def get_session() -> Iterator[Session]:
+    with Session(engine) as session:
+        yield session

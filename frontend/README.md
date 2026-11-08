@@ -57,7 +57,7 @@ La aplicacion consulta `/api/health` y muestra el estado
 de conexion con el backend.
 
 En desarrollo, Angular utiliza `src/proxy.conf.json`
-para redirigir `/api/health` hacia `http://127.0.0.1:8000/health`.
+para redirigir `/api/health` hacia `http://127.0.0.1:8000/api/health`.
 
 El proxy es exclusivo del servidor de desarrollo.
 Un despliegue de produccion necesitara configurar
