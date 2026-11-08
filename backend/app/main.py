@@ -1,8 +1,9 @@
-﻿from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException
 from sqlmodel import Session, select
 
+from .clasificacion import clasificar_ticket
 from .database import get_session, init_db
 from .models import Ticket, ahora_utc
 from .schemas import TicketCreate, TicketUpdate
@@ -31,7 +32,14 @@ def crear_ticket(
     datos: TicketCreate,
     session: Session = Depends(get_session),
 ):
-    ticket = Ticket(**datos.model_dump())
+    categoria, motivo = clasificar_ticket(
+        datos.origen_sistema, datos.asunto, datos.descripcion
+    )
+    ticket = Ticket(
+        **datos.model_dump(),
+        categoria=categoria,
+        motivo_clasificacion=motivo,
+    )
 
     session.add(ticket)
     session.commit()
@@ -74,6 +82,9 @@ def actualizar_ticket(
     for campo, valor in datos.model_dump(exclude_unset=True).items():
         setattr(ticket, campo, valor)
 
+    ticket.categoria, ticket.motivo_clasificacion = clasificar_ticket(
+        ticket.origen_sistema, ticket.asunto, ticket.descripcion
+    )
     ticket.fecha_actualizacion = ahora_utc()
 
     session.add(ticket)
