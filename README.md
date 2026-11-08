@@ -132,3 +132,24 @@ de producción sin incorporar controles de acceso.
 
 La base SQLite local almacena los tickets registrados.
 Los archivos de datos locales no se incluyen en Git.
+
+### Inicio rapido en Windows
+
+Para iniciar el prototipo completo, hacer doble clic en:
+
+`iniciar-mesa-ayuda.bat`
+
+El iniciador:
+
+- Comprueba que uv y npm esten disponibles.
+- Instala las dependencias Angular si faltan.
+- Inicia FastAPI en el puerto 8000.
+- Inicia Angular en el puerto 4200.
+- Espera a que ambos servicios respondan.
+- Abre automaticamente el navegador.
+
+Para detener la aplicacion, presionar `Ctrl+C`
+en cada una de las dos ventanas de los servidores.
+
+El iniciador esta pensado para el desarrollo y
+la demostracion local en Windows.
