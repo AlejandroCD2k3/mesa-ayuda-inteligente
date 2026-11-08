@@ -5,7 +5,7 @@ class TicketCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     origen_sistema: str = Field(min_length=1)
-    solicitante: str = Field(min_length=1)
+    solicitante: str | None = Field(default=None, min_length=1)
     asunto: str = Field(min_length=1)
     descripcion: str = Field(min_length=1)
 

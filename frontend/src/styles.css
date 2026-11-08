@@ -255,3 +255,136 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .botones .boton { flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+
+/* Seleccion de perfiles para demostracion local. */
+
+.acceso-demo {
+  min-height: 100vh;
+  background: #f3f6fa;
+  display: grid;
+  place-items: center;
+  padding: 28px 16px;
+}
+
+.acceso-contenido {
+  width: min(100%, 530px);
+  border: 1px solid #d5e0ed;
+  background: #fff;
+  border-radius: 12px;
+  padding: 30px;
+}
+
+.acceso-logo {
+  width: 140px;
+  height: 110px;
+  object-fit: contain;
+  background: #043c73;
+  border-radius: 6px;
+}
+
+.acceso-etiqueta {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .06em;
+  color: #1d598d;
+  margin-top: 20px;
+  text-transform: uppercase;
+}
+
+.acceso-contenido h1 {
+  font-size: 29px;
+  margin: 10px 0;
+  color: #103a68;
+}
+
+.acceso-contenido>p {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #5b6f89;
+}
+
+.acceso-lista {
+  display: grid;
+  gap: 10px;
+  margin: 24px 0 18px;
+}
+
+.acceso-perfil {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  gap: 14px;
+  width: 100%;
+  padding: 15px 16px;
+  border: 1px solid #d2deeb;
+  border-radius: 7px;
+  background: white;
+  color: #12375e;
+}
+
+.acceso-perfil:hover:not(:disabled) {
+  border-color: #2775b6;
+  background: #f3f9ff;
+}
+
+.acceso-perfil strong {
+  font-size: 14px;
+  display: block;
+}
+
+.acceso-perfil small {
+  display: block;
+  margin-top: 5px;
+  color: #657b95;
+  font-size: 11px;
+}
+
+.acceso-perfil>span:last-child {
+  font-size: 19px;
+}
+
+.acceso-cargando {
+  font-size: 13px;
+  color: #6c7e91;
+}
+
+.acceso-contenido .acceso-nota {
+  border-top: 1px solid #e5eaf0;
+  padding-top: 13px;
+  font-size: 11px;
+}
+
+.usuario-activo {
+  color: #375877;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cambiar-usuario {
+  border: 1px solid #c8d8e8;
+  background: #fff;
+  color: #0b4f8d;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 11px;
+}
+
+.cambiar-usuario:hover {
+  background: #f1f7fe;
+}
+
+.nota-identidad {
+  margin: 14px 0;
+  background: #eef4fb;
+  padding: 11px;
+  border-left: 3px solid #407caf;
+  color: #36516c;
+  font-size: 12px;
+}
+
+@media (max-width: 520px) {
+  .acceso-contenido { padding: 20px; }
+  .usuario-activo { display: none; }
+}
