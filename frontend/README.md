@@ -70,3 +70,45 @@ Para ejecutar las pruebas del frontend:
 Para comprobar la compilacion:
 
     npm run build
+
+## Interfaz funcional de Mesa de Ayuda
+
+La aplicacion Angular incorpora tres vistas:
+
+- Vista general: indicadores y solicitudes recientes.
+- Mis solicitudes: registro, consulta y confirmacion de soluciones.
+- Panel de soporte: atencion y resolucion de tickets.
+
+### Identidad visual
+
+La interfaz utiliza una presentacion institucional inspirada
+en la identidad grafica de la UNAD, con recursos SVG locales,
+diseno adaptable a dispositivos moviles y sin bibliotecas
+visuales adicionales.
+
+### Ejecucion local
+
+Primero iniciar FastAPI desde la carpeta backend:
+
+    uv run --locked python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+
+Despues iniciar Angular desde la carpeta frontend:
+
+    npm start
+
+Abrir http://localhost:4200
+
+Angular utiliza el proxy /api para comunicarse con FastAPI.
+El listado de tickets se actualiza periodicamente.
+
+### Validaciones
+
+    npm test -- --watch=false
+    npm run build
+
+### Alcance
+
+Esta es una interfaz funcional de demostracion.
+No incluye autenticacion ni autorizacion por roles.
+Las acciones de soporte deben protegerse antes de publicar
+el sistema para usuarios reales.
