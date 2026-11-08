@@ -20,9 +20,27 @@ def cliente_aceptacion(tmp_path: Path, monkeypatch):
 
     try:
         with TestClient(app) as cliente:
+            sesion = cliente.post(
+                "/api/demo/sesion",
+                json={"usuario_id": "estudiante.demo"},
+            ).json()
+            cliente.headers.update({
+                "Authorization": f"Bearer {sesion['token']}"
+            })
             yield cliente
     finally:
         motor.dispose()
+
+
+def cabeceras_soporte(cliente, tecnico=False):
+    identidad = (
+        "soporte.tecnico" if tecnico else "soporte.funcional"
+    )
+    sesion = cliente.post(
+        "/api/demo/sesion",
+        json={"usuario_id": identidad},
+    ).json()
+    return {"Authorization": f"Bearer {sesion['token']}"}
 
 
 def registrar(cliente, asunto, descripcion, sistema="MAIA"):
@@ -93,6 +111,7 @@ def test_aceptacion_02_rechazo_y_escalamiento(cliente_aceptacion):
         json={
             "respuesta": "Se acompano al estudiante y se verifico el acceso."
         },
+        headers=cabeceras_soporte(cliente),
     )
 
     assert cierre.status_code == 200
@@ -120,6 +139,7 @@ def test_aceptacion_03_atencion_funcional_directa(cliente_aceptacion):
     cierre = cliente.post(
         f"/api/tickets/{ticket['id']}/resolver",
         json={"respuesta": "Se reviso y restablecio la entrega."},
+        headers=cabeceras_soporte(cliente),
     )
 
     assert cierre.status_code == 200
@@ -143,6 +163,7 @@ def test_aceptacion_04_atencion_tecnica_directa(cliente_aceptacion):
     cierre = cliente.post(
         f"/api/tickets/{ticket['id']}/resolver",
         json={"respuesta": "Se restablecio el servicio de integracion."},
+        headers=cabeceras_soporte(cliente, tecnico=True),
     )
 
     assert cierre.status_code == 200
@@ -166,7 +187,7 @@ def test_aceptacion_05_operaciones_invalidas(cliente_aceptacion):
     assert cliente.post(
         f"{ruta}/resolver",
         json={"respuesta": "Caso cerrado."},
-    ).status_code == 409
+    ).status_code == 403
 
     assert cliente.post(
         f"{ruta}/confirmacion",

@@ -1,7 +1,14 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { App, Ticket } from './app';
+import { App, Ticket, UsuarioDemo } from './app';
+
+const perfiles: UsuarioDemo[] = [
+  { id: 'estudiante.demo', nombre: 'Estudiante A', rol: 'estudiante' },
+  { id: 'estudiante.alterno', nombre: 'Estudiante B', rol: 'estudiante' },
+  { id: 'soporte.funcional', nombre: 'Soporte funcional', rol: 'soporte_funcional' },
+  { id: 'soporte.tecnico', nombre: 'Soporte técnico', rol: 'soporte_tecnico' }
+];
 
 const funcional: Ticket = {
   id: 1,
@@ -41,14 +48,27 @@ describe('Mesa de Ayuda Inteligente', () => {
     TestBed.inject(HttpTestingController).verify();
   });
 
-  function iniciar(tickets: Ticket[] = []) {
+  function iniciar(tickets: Ticket[] = [], perfil = perfiles[0]) {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const http = TestBed.inject(HttpTestingController);
     http.expectOne('/api/health').flush({ status: 'ok' });
-    http.expectOne('/api/tickets').flush(tickets);
+    http.expectOne('/api/demo/usuarios').flush(perfiles);
+
+    const app = fixture.componentInstance;
+    app.iniciarPerfil(perfil.id);
+
+    const sesion = http.expectOne('/api/demo/sesion');
+    expect(sesion.request.body).toEqual({ usuario_id: perfil.id });
+    sesion.flush({ token: 'token-test', usuario: perfil });
+
+    const listado = http.expectOne('/api/tickets');
+    expect(listado.request.headers.get('Authorization'))
+      .toBe('Bearer token-test');
+    listado.flush(tickets);
+
     fixture.detectChanges();
-    return { fixture, http, app: fixture.componentInstance };
+    return { fixture, http, app };
   }
 
   it('consulta la salud y el listado de la API', () => {
@@ -65,7 +85,7 @@ describe('Mesa de Ayuda Inteligente', () => {
       { detail: 'Servicio no disponible' },
       { status: 503, statusText: 'Service Unavailable' }
     );
-    http.expectOne('/api/tickets').flush([]);
+    http.expectOne('/api/demo/usuarios').flush(perfiles);
     fixture.detectChanges();
     expect(fixture.componentInstance.conexion()).toBe('sin-conexion');
   });
@@ -82,13 +102,16 @@ describe('Mesa de Ayuda Inteligente', () => {
   it('crea una solicitud por POST y la presenta en el historial', () => {
     const { app, http } = iniciar([]);
     app.formulario = {
-      origen_sistema: 'MAIA', solicitante: 'usuario.demo',
+      origen_sistema: 'MAIA',
       asunto: 'Problema de acceso', descripcion: 'No puedo ingresar.'
     };
     app.crearTicket();
     const solicitud = http.expectOne('/api/tickets');
     expect(solicitud.request.method).toBe('POST');
     expect(solicitud.request.body.origen_sistema).toBe('MAIA');
+    expect(solicitud.request.body).not.toHaveProperty('solicitante');
+    expect(solicitud.request.headers.get('Authorization'))
+      .toBe('Bearer token-test');
     solicitud.flush(funcional);
     expect(app.tickets().length).toBe(1);
     expect(app.seleccion()?.id).toBe(1);
@@ -117,7 +140,7 @@ describe('Mesa de Ayuda Inteligente', () => {
   });
 
   it('registra la respuesta humana y cierra el caso', () => {
-    const { app, http } = iniciar([funcional]);
+    const { app, http } = iniciar([funcional], perfiles[2]);
     app.seleccionar(funcional);
     app.respuestaAtencion = 'Se restableció el acceso.';
     app.resolver();
@@ -128,5 +151,74 @@ describe('Mesa de Ayuda Inteligente', () => {
     });
     expect(app.seleccion()?.estado).toBe('RESUELTO');
     expect(app.respuestaAtencion).toBe('');
+  });
+
+
+  it('muestra selector de perfiles sin tickets anonimos', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/health').flush({ status: 'ok' });
+    http.expectOne('/api/demo/usuarios').flush(perfiles);
+
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent)
+      .toContain('Selecciona un perfil');
+
+    http.expectNone('/api/tickets');
+  });
+
+  it('separa las vistas por perfil', () => {
+    const { app, http } = iniciar([funcional]);
+
+    app.cambiarVista('soporte');
+    expect(app.vista()).toBe('resumen');
+
+    app.cerrarSesion();
+    app.iniciarPerfil(perfiles[2].id);
+
+    http.expectOne('/api/demo/sesion').flush({
+      token: 'token-soporte',
+      usuario: perfiles[2]
+    });
+
+    http.expectOne('/api/tickets').flush([funcional]);
+
+    app.cambiarVista('solicitudes');
+    expect(app.vista()).toBe('resumen');
+  });
+
+  it('descarta respuestas anteriores al cambiar de perfil', () => {
+    const { app, http } = iniciar([funcional]);
+
+    app.seleccionar(funcional);
+    app.cargarTickets();
+
+    const anterior = http.expectOne('/api/tickets');
+
+    app.cerrarSesion();
+
+    expect(app.usuario()).toBeNull();
+    expect(app.seleccion()).toBeNull();
+
+    anterior.flush([funcional]);
+
+    expect(app.tickets()).toEqual([]);
+  });
+
+  it('solicita nuevo perfil cuando vence la sesion', () => {
+    const { app, http } = iniciar([]);
+
+    app.cargarTickets();
+
+    http.expectOne('/api/tickets').flush(
+      { detail: 'Sesion vencida' },
+      { status: 401, statusText: 'Unauthorized' }
+    );
+
+    expect(app.usuario()).toBeNull();
+    expect(app.error()).toContain('sesión venció');
   });
 });
