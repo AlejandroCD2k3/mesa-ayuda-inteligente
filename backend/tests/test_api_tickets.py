@@ -21,9 +21,27 @@ def cliente(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
     try:
         with TestClient(app) as test_client:
+            sesion = test_client.post(
+                "/api/demo/sesion",
+                json={"usuario_id": "estudiante.demo"},
+            ).json()
+            test_client.headers.update({
+                "Authorization": f"Bearer {sesion['token']}"
+            })
             yield test_client
     finally:
         motor_prueba.dispose()
+
+
+def cabeceras_soporte(cliente, tecnico=False):
+    identidad = (
+        "soporte.tecnico" if tecnico else "soporte.funcional"
+    )
+    sesion = cliente.post(
+        "/api/demo/sesion",
+        json={"usuario_id": identidad},
+    ).json()
+    return {"Authorization": f"Bearer {sesion['token']}"}
 
 
 def datos_ticket():
@@ -343,6 +361,7 @@ def test_resolver_ticket_funcional(cliente):
     respuesta = cliente.post(
         f"/api/tickets/{ticket['id']}/resolver",
         json={"respuesta": "Se revisaron los permisos del usuario."},
+        headers=cabeceras_soporte(cliente),
     )
 
     assert respuesta.status_code == 200
@@ -370,6 +389,7 @@ def test_resolver_ticket_tecnico(cliente):
     respuesta = cliente.post(
         f"/api/tickets/{ticket['id']}/resolver",
         json={"respuesta": "Se restablecio la integracion con Moodle."},
+        headers=cabeceras_soporte(cliente, tecnico=True),
     )
 
     assert respuesta.status_code == 200
@@ -391,6 +411,7 @@ def test_resolver_ticket_auto_rechazado(cliente):
     cierre = cliente.post(
         f"{ruta}/resolver",
         json={"respuesta": "Se acompano al estudiante durante la consulta."},
+        headers=cabeceras_soporte(cliente),
     )
 
     assert cierre.status_code == 200
@@ -408,7 +429,7 @@ def test_no_resolver_auto_pendiente(cliente):
         json={"respuesta": "Atendido."},
     )
 
-    assert respuesta.status_code == 409
+    assert respuesta.status_code == 403
 
     guardado = cliente.get(f"/api/tickets/{ticket['id']}").json()
     assert guardado["estado"] == "PENDIENTE_CONFIRMACION"
@@ -418,8 +439,13 @@ def test_no_resolver_dos_veces(cliente):
     ticket = cliente.post("/api/tickets", json=datos_ticket()).json()
     ruta = f"/api/tickets/{ticket['id']}/resolver"
 
-    primera = cliente.post(ruta, json={"respuesta": "Caso atendido."})
-    segunda = cliente.post(ruta, json={"respuesta": "Otra respuesta."})
+    headers = cabeceras_soporte(cliente)
+    primera = cliente.post(
+        ruta, json={"respuesta": "Caso atendido."}, headers=headers
+    )
+    segunda = cliente.post(
+        ruta, json={"respuesta": "Otra respuesta."}, headers=headers
+    )
 
     assert primera.status_code == 200
     assert segunda.status_code == 409

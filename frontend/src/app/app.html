@@ -1,3 +1,38 @@
+@if (!usuario()) {
+  <main class="acceso-demo">
+    <section class="acceso-contenido" aria-labelledby="titulo-acceso">
+      <img src="/assets/marca-unad.png" alt="UNAD — Universidad Nacional Abierta y a Distancia" class="acceso-logo" />
+
+      <h1 id="titulo-acceso">Selecciona un perfil</h1>
+      <p>Elige una identidad para explorar la mesa de ayuda. No se solicitan credenciales institucionales.</p>
+
+      @if (error()) {
+        <div class="alerta alerta-error" role="alert">{{ error() }}</div>
+      }
+
+      <div class="acceso-lista">
+        @for (perfil of perfiles(); track perfil.id) {
+          <button
+            type="button"
+            class="acceso-perfil"
+            [disabled]="iniciando()"
+            (click)="iniciarPerfil(perfil.id)"
+          >
+            <span>
+              <strong>{{ perfil.nombre }}</strong>
+              <small>{{ perfil.rol === 'estudiante' ? 'Consulta y seguimiento de solicitudes' : 'Atención del equipo asignado' }}</small>
+            </span>
+            <span aria-hidden="true">→</span>
+          </button>
+        } @empty {
+          <p class="acceso-cargando">Consultando perfiles disponibles...</p>
+        }
+      </div>
+
+
+    </section>
+  </main>
+} @else {
 <div class="aplicacion">
   <aside class="lateral" aria-label="Navegación principal">
     <div class="marca">
@@ -8,12 +43,16 @@
       <button type="button" [class.activo]="vista() === 'resumen'" (click)="cambiarVista('resumen')">
         <img class="menu-icono" src="/assets/nav-resumen.svg" alt="" /><span>Vista general</span>
       </button>
-      <button type="button" [class.activo]="vista() === 'solicitudes'" (click)="cambiarVista('solicitudes')">
-        <img class="menu-icono" src="/assets/nav-ticket.svg" alt="" /><span>Mis solicitudes</span>
-      </button>
-      <button type="button" [class.activo]="vista() === 'soporte'" (click)="cambiarVista('soporte')">
-        <img class="menu-icono" src="/assets/nav-soporte.svg" alt="" /><span>Panel de soporte</span>
-      </button>
+      @if (esEstudiante()) {
+        <button type="button" [class.activo]="vista() === 'solicitudes'" (click)="cambiarVista('solicitudes')">
+          <img class="menu-icono" src="/assets/nav-ticket.svg" alt="" /><span>Mis solicitudes</span>
+        </button>
+      }
+      @if (!esEstudiante()) {
+        <button type="button" [class.activo]="vista() === 'soporte'" (click)="cambiarVista('soporte')">
+          <img class="menu-icono" src="/assets/nav-soporte.svg" alt="" /><span>Panel de soporte</span>
+        </button>
+      }
     </nav>
 
     <div class="lateral-inferior">
@@ -25,7 +64,9 @@
     <header class="barra-superior">
       <div class="ruta">Plataforma <span>/</span> <strong>{{ vista() === 'resumen' ? 'Vista general' : vista() === 'soporte' ? 'Panel de soporte' : 'Mis solicitudes' }}</strong></div>
       <div class="barra-acciones">
-        <div class="avatar" aria-label="Modo demostración">D</div>
+        <span class="usuario-activo">{{ usuario()?.nombre }}</span>
+        <button type="button" class="cambiar-usuario" (click)="cerrarSesion()">Cambiar perfil</button>
+        <div class="avatar" aria-label="Perfil de demostración">{{ usuario()?.nombre?.slice(0, 1) }}</div>
       </div>
     </header>
 
@@ -39,8 +80,10 @@
 
       @if (vista() === 'resumen') {
         <div class="encabezado encabezado-institucional">
-          <div><h1>Mesa de Ayuda <em>UNAD</em></h1><p class="subtitulo">Gestiona tus solicitudes de soporte tecnológico y recibe acompañamiento oportuno.</p></div>
-          <button class="boton boton-primario" type="button" (click)="cambiarVista('solicitudes')"><span class="suma" aria-hidden="true">＋</span> Nueva solicitud</button>
+          <div><h1>Mesa de Ayuda <em>UNAD</em></h1><p class="subtitulo">{{ esEstudiante() ? 'Gestiona tus solicitudes y recibe acompañamiento oportuno.' : 'Consulta el estado de las solicitudes asignadas a tu equipo.' }}</p></div>
+          @if (esEstudiante()) {
+            <button class="boton boton-primario" type="button" (click)="cambiarVista('solicitudes')"><span class="suma" aria-hidden="true">＋</span> Nueva solicitud</button>
+          }
         </div>
 
         <section class="metricas" aria-label="Indicadores de tickets">
@@ -52,9 +95,9 @@
 
         <div class="resumen-grid">
           <section class="panel panel-tickets">
-            <div class="panel-cabecera"><div class="titulo-con-icono"><img src="/assets/nav-doc.svg" alt="" /><h2>Últimas solicitudes</h2></div><button class="enlace" type="button" (click)="cambiarVista('solicitudes')">Ver todas <span>→</span></button></div>
+            <div class="panel-cabecera"><div class="titulo-con-icono"><img src="/assets/nav-doc.svg" alt="" /><h2>Últimas solicitudes</h2></div><button class="enlace" type="button" (click)="cambiarVista(esEstudiante() ? 'solicitudes' : 'soporte')">Ver todas <span>→</span></button></div>
             @for (ticket of recientes(); track ticket.id) {
-              <button class="fila-ticket" type="button" (click)="seleccionar(ticket); cambiarVista('solicitudes')">
+              <button class="fila-ticket" type="button" (click)="seleccionar(ticket); cambiarVista(esEstudiante() ? 'solicitudes' : 'soporte')">
                 <span class="fila-avatar">{{ ticket.origen_sistema.slice(0, 1).toUpperCase() }}</span>
                 <span class="fila-contenido"><strong>{{ ticket.asunto }}</strong><small>#{{ ticket.id }} · {{ ticket.origen_sistema }} · {{ ticket.fecha_creacion | date:'dd/MM/yyyy' }}</small></span>
                 <span class="estado-etiqueta" [class.pendiente]="ticket.estado === 'PENDIENTE_CONFIRMACION'" [class.atencion]="ticket.estado === 'EN_ATENCION'" [class.resuelto]="ticket.estado === 'RESUELTO'">{{ etiquetaEstado(ticket.estado) }}</span>
@@ -66,9 +109,15 @@
           <section class="panel panel-ayuda">
             <div class="ayuda-contenido">
               <img class="ayuda-icono" src="/assets/nav-help.svg" alt="" />
+              @if (esEstudiante()) {
               <h2>¿Necesitas ayuda?</h2>
               <p>Reporta un inconveniente con MAIA, EvaluIA o Moodle. Clasificaremos tu solicitud y te mostraremos el siguiente paso.</p>
               <button class="boton boton-amarillo" type="button" (click)="cambiarVista('solicitudes')">Crear una solicitud <span aria-hidden="true">→</span></button>
+              } @else {
+              <h2>Equipo de soporte</h2>
+              <p>Revisa los casos que te corresponden y registra las acciones de atención.</p>
+              <button class="boton boton-amarillo" type="button" (click)="cambiarVista('soporte')">Abrir bandeja <span aria-hidden="true">→</span></button>
+              }
             </div>
           </section>
         </div>
@@ -78,7 +127,7 @@
           <section class="panel formulario-panel"><div class="panel-cabecera"><div><h2>Cuéntanos qué sucede</h2></div></div>
             <form (ngSubmit)="crearTicket()">
               <label for="sistema">Plataforma</label><select id="sistema" name="sistema" [(ngModel)]="formulario.origen_sistema" required><option value="MAIA">MAIA</option><option value="EvaluIA">EvaluIA</option><option value="Moodle">Moodle</option><option value="Otro">Otro sistema</option></select>
-              <label for="solicitante">Usuario o correo institucional</label><input id="solicitante" name="solicitante" type="text" [(ngModel)]="formulario.solicitante" placeholder="ejemplo@unad.edu.co" required />
+              <p class="nota-identidad">Solicitante: <strong>{{ usuario()?.nombre }}</strong>. Tu identidad se asigna automáticamente.</p>
               <label for="asunto">Asunto</label><input id="asunto" name="asunto" type="text" [(ngModel)]="formulario.asunto" placeholder="¿En qué necesitas ayuda?" required />
               <label for="descripcion">Descripción del problema</label><textarea id="descripcion" name="descripcion" rows="5" [(ngModel)]="formulario.descripcion" placeholder="Cuéntanos qué ocurrió y qué estabas intentando hacer..." required></textarea>
               <button class="boton boton-primario boton-ancho" type="submit" [disabled]="enviando()">{{ enviando() ? 'Registrando...' : 'Enviar solicitud →' }}</button>
@@ -131,3 +180,5 @@
     </main>
   </div>
 </div>
+
+}

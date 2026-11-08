@@ -20,10 +20,10 @@ class UsuarioDemo:
 
 USUARIOS_DEMO = {
     "estudiante.demo": UsuarioDemo(
-        "estudiante.demo", "Estudiante demo", "estudiante"
+        "estudiante.demo", "Estudiante A", "estudiante"
     ),
     "estudiante.alterno": UsuarioDemo(
-        "estudiante.alterno", "Estudiante alterno", "estudiante"
+        "estudiante.alterno", "Estudiante B", "estudiante"
     ),
     "soporte.funcional": UsuarioDemo(
         "soporte.funcional", "Soporte funcional", "soporte_funcional"
