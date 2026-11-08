@@ -1,4 +1,4 @@
-﻿from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class TicketCreate(BaseModel):
@@ -24,3 +24,9 @@ class TicketUpdate(BaseModel):
             raise ValueError("Indica al menos un campo con texto.")
 
         return self
+
+
+class ConfirmacionSolucion(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    resuelta: bool

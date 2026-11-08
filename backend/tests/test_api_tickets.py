@@ -152,7 +152,8 @@ def test_clasificacion_al_crear_ticket(cliente):
 
     assert ticket["categoria"] == "AUTO"
     assert ticket["motivo_clasificacion"]
-    assert ticket["estado"] == "ABIERTO"
+    assert ticket["respuesta_sugerida"]
+    assert ticket["estado"] == "PENDIENTE_CONFIRMACION"
 
 
 def test_reclasificacion_al_editar_ticket(cliente):
@@ -179,3 +180,156 @@ def test_reclasificacion_al_editar_ticket(cliente):
 
     guardado = cliente.get(f"/api/tickets/{creado['id']}").json()
     assert guardado["categoria"] == "TÉCNICO"
+
+def datos_auto():
+    return {
+        "origen_sistema": "MAIA",
+        "solicitante": "usuario.demo",
+        "asunto": "¿Dónde encuentro mis actividades?",
+        "descripcion": "Quiero consultar las actividades del curso.",
+    }
+
+
+def test_auto_recibe_sugerencia_y_espera_confirmacion(cliente):
+    respuesta = cliente.post("/api/tickets", json=datos_auto())
+
+    assert respuesta.status_code == 201
+    ticket = respuesta.json()
+
+    assert ticket["categoria"] == "AUTO"
+    assert ticket["estado"] == "PENDIENTE_CONFIRMACION"
+    assert ticket["respuesta_sugerida"]
+    assert ticket["responsable"] is None
+
+
+def test_aceptar_solucion_resuelve_ticket(cliente):
+    ticket = cliente.post("/api/tickets", json=datos_auto()).json()
+
+    respuesta = cliente.post(
+        f"/api/tickets/{ticket['id']}/confirmacion",
+        json={"resuelta": True},
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "RESUELTO"
+    assert respuesta.json()["categoria"] == "AUTO"
+
+    guardado = cliente.get(f"/api/tickets/{ticket['id']}").json()
+    assert guardado["estado"] == "RESUELTO"
+
+
+def test_rechazar_solucion_escala_a_funcional(cliente):
+    ticket = cliente.post("/api/tickets", json=datos_auto()).json()
+
+    respuesta = cliente.post(
+        f"/api/tickets/{ticket['id']}/confirmacion",
+        json={"resuelta": False},
+    )
+
+    assert respuesta.status_code == 200
+
+    actualizado = respuesta.json()
+
+    assert actualizado["categoria"] == "FUNCIONAL"
+    assert actualizado["estado"] == "EN_ATENCION"
+    assert actualizado["responsable"] == "soporte_funcional"
+    assert actualizado["motivo_clasificacion"]
+    assert actualizado["respuesta_sugerida"]
+
+    guardado = cliente.get(f"/api/tickets/{ticket['id']}").json()
+    assert guardado["estado"] == "EN_ATENCION"
+    assert guardado["responsable"] == "soporte_funcional"
+
+
+def test_no_confirmar_ticket_funcional(cliente):
+    ticket = cliente.post("/api/tickets", json=datos_ticket()).json()
+
+    assert ticket["categoria"] == "FUNCIONAL"
+    assert ticket["respuesta_sugerida"] is None
+
+    respuesta = cliente.post(
+        f"/api/tickets/{ticket['id']}/confirmacion",
+        json={"resuelta": True},
+    )
+
+    assert respuesta.status_code == 409
+
+
+def test_confirmacion_ticket_inexistente(cliente):
+    respuesta = cliente.post(
+        "/api/tickets/999/confirmacion",
+        json={"resuelta": True},
+    )
+
+    assert respuesta.status_code == 404
+
+
+def test_no_confirmar_dos_veces(cliente):
+    ticket = cliente.post("/api/tickets", json=datos_auto()).json()
+    ruta = f"/api/tickets/{ticket['id']}/confirmacion"
+
+    primera = cliente.post(ruta, json={"resuelta": True})
+    segunda = cliente.post(ruta, json={"resuelta": False})
+
+    assert primera.status_code == 200
+    assert segunda.status_code == 409
+
+    guardado = cliente.get(f"/api/tickets/{ticket['id']}").json()
+    assert guardado["estado"] == "RESUELTO"
+
+
+def test_confirmacion_rechaza_datos_invalidos(cliente):
+    ticket = cliente.post("/api/tickets", json=datos_auto()).json()
+    ruta = f"/api/tickets/{ticket['id']}/confirmacion"
+
+    for datos in (
+        {},
+        {"resuelta": None},
+        {"resuelta": "si"},
+        {"resuelta": True, "estado": "RESUELTO"},
+    ):
+        assert cliente.post(ruta, json=datos).status_code == 422
+
+    guardado = cliente.get(f"/api/tickets/{ticket['id']}").json()
+    assert guardado["estado"] == "PENDIENTE_CONFIRMACION"
+
+
+def test_no_editar_ticket_pendiente_ni_resuelto(cliente):
+    ticket = cliente.post("/api/tickets", json=datos_auto()).json()
+    ruta = f"/api/tickets/{ticket['id']}"
+
+    assert cliente.patch(
+        ruta, json={"asunto": "Otro asunto"}
+    ).status_code == 409
+
+    cliente.post(
+        f"{ruta}/confirmacion",
+        json={"resuelta": True},
+    )
+
+    assert cliente.patch(
+        ruta, json={"asunto": "Otro asunto"}
+    ).status_code == 409
+
+    guardado = cliente.get(ruta).json()
+    assert guardado["asunto"] == ticket["asunto"]
+
+
+def test_reclasificacion_a_auto_genera_sugerencia(cliente):
+    datos = datos_ticket()
+    creado = cliente.post("/api/tickets", json=datos).json()
+
+    assert creado["categoria"] == "FUNCIONAL"
+
+    respuesta = cliente.patch(
+        f"/api/tickets/{creado['id']}",
+        json={
+            "asunto": "¿Dónde encuentro mis actividades?",
+            "descripcion": "Quiero consultar las actividades del curso.",
+        },
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["categoria"] == "AUTO"
+    assert respuesta.json()["estado"] == "PENDIENTE_CONFIRMACION"
+    assert respuesta.json()["respuesta_sugerida"]

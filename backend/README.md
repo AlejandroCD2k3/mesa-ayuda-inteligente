@@ -95,3 +95,33 @@ prototipo. No es un clasificador de lenguaje general.
 
 La clasificacion no resuelve el ticket ni asigna un responsable.
 Estas acciones se implementaran en las siguientes etapas.
+
+## Sugerencias y confirmacion
+
+Cuando una solicitud se clasifica como `AUTO`, la API
+asocia una respuesta sugerida y establece el estado
+`PENDIENTE_CONFIRMACION`.
+
+El solicitante puede responder mediante:
+
+    POST /api/tickets/{ticket_id}/confirmacion
+
+Ejemplo de solicitud:
+
+    {"resuelta": true}
+
+Si confirma que la sugerencia funciono, el ticket queda
+`RESUELTO`.
+
+Si responde `false`, pasa a `FUNCIONAL`, con estado
+`EN_ATENCION` y responsable `soporte_funcional`.
+
+Las confirmaciones repetidas y las operaciones incompatibles
+con el estado actual se rechazan con HTTP 409.
+
+La sugerencia disponible cubre el caso de consulta de
+actividades en MAIA. No representa una solucion general
+para cualquier solicitud.
+
+La API utiliza identidades de demostracion; todavia no
+autentica al solicitante que confirma la solucion.
