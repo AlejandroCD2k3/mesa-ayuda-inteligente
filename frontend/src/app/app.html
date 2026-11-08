@@ -1,0 +1,133 @@
+<div class="aplicacion">
+  <aside class="lateral" aria-label="Navegación principal">
+    <div class="marca">
+      <img class="marca-imagen" src="/assets/marca-unad.png" alt="UNAD — Universidad Nacional Abierta y a Distancia" />
+      <span class="marca-separador" aria-hidden="true"></span>
+    </div>
+    <nav class="menu" aria-label="Secciones">
+      <button type="button" [class.activo]="vista() === 'resumen'" (click)="cambiarVista('resumen')">
+        <img class="menu-icono" src="/assets/nav-resumen.svg" alt="" /><span>Vista general</span>
+      </button>
+      <button type="button" [class.activo]="vista() === 'solicitudes'" (click)="cambiarVista('solicitudes')">
+        <img class="menu-icono" src="/assets/nav-ticket.svg" alt="" /><span>Mis solicitudes</span>
+      </button>
+      <button type="button" [class.activo]="vista() === 'soporte'" (click)="cambiarVista('soporte')">
+        <img class="menu-icono" src="/assets/nav-soporte.svg" alt="" /><span>Panel de soporte</span>
+      </button>
+    </nav>
+
+    <div class="lateral-inferior">
+      <div class="nota-demo"><span class="nota-punto"></span><strong>Entorno de demostración</strong><small>Acceso de prueba sin iniciar sesión.</small></div>
+    </div>
+  </aside>
+
+  <div class="principal">
+    <header class="barra-superior">
+      <div class="ruta">Plataforma <span>/</span> <strong>{{ vista() === 'resumen' ? 'Vista general' : vista() === 'soporte' ? 'Panel de soporte' : 'Mis solicitudes' }}</strong></div>
+      <div class="barra-acciones">
+        <div class="avatar" aria-label="Modo demostración">D</div>
+      </div>
+    </header>
+
+    <main class="contenido">
+      @if (mensaje()) {
+        <div class="alerta alerta-exito" role="status"><span>✓</span>{{ mensaje() }}<button type="button" (click)="mensaje.set('')" aria-label="Cerrar aviso">×</button></div>
+      }
+      @if (error()) {
+        <div class="alerta alerta-error" role="alert"><span>!</span>{{ error() }}<button type="button" (click)="error.set('')" aria-label="Cerrar error">×</button></div>
+      }
+
+      @if (vista() === 'resumen') {
+        <div class="encabezado encabezado-institucional">
+          <div><h1>Mesa de Ayuda <em>UNAD</em></h1><p class="subtitulo">Gestiona tus solicitudes de soporte tecnológico y recibe acompañamiento oportuno.</p></div>
+          <button class="boton boton-primario" type="button" (click)="cambiarVista('solicitudes')"><span class="suma" aria-hidden="true">＋</span> Nueva solicitud</button>
+        </div>
+
+        <section class="metricas" aria-label="Indicadores de tickets">
+          <article class="metrica metrica-azul"><img class="metrica-icono" src="/assets/icon-solicitudes.svg" alt="" /><div class="metrica-datos"><span class="metrica-etiqueta">Total de solicitudes</span><strong>{{ total() }}</strong><small>Tickets registrados</small></div></article>
+          <article class="metrica metrica-amarilla"><img class="metrica-icono" src="/assets/icon-reloj.svg" alt="" /><div class="metrica-datos"><span class="metrica-etiqueta">Por confirmar</span><strong>{{ pendientes() }}</strong><small>Esperando al solicitante</small></div></article>
+          <article class="metrica metrica-violeta"><img class="metrica-icono" src="/assets/icon-soporte.svg" alt="" /><div class="metrica-datos"><span class="metrica-etiqueta">En atención</span><strong>{{ enAtencion() }}</strong><small>En manos del equipo</small></div></article>
+          <article class="metrica metrica-verde"><img class="metrica-icono" src="/assets/icon-resuelto.svg" alt="" /><div class="metrica-datos"><span class="metrica-etiqueta">Resueltos</span><strong>{{ resueltos() }}</strong><small>Atenciones finalizadas</small></div></article>
+        </section>
+
+        <div class="resumen-grid">
+          <section class="panel panel-tickets">
+            <div class="panel-cabecera"><div class="titulo-con-icono"><img src="/assets/nav-doc.svg" alt="" /><h2>Últimas solicitudes</h2></div><button class="enlace" type="button" (click)="cambiarVista('solicitudes')">Ver todas <span>→</span></button></div>
+            @for (ticket of recientes(); track ticket.id) {
+              <button class="fila-ticket" type="button" (click)="seleccionar(ticket); cambiarVista('solicitudes')">
+                <span class="fila-avatar">{{ ticket.origen_sistema.slice(0, 1).toUpperCase() }}</span>
+                <span class="fila-contenido"><strong>{{ ticket.asunto }}</strong><small>#{{ ticket.id }} · {{ ticket.origen_sistema }} · {{ ticket.fecha_creacion | date:'dd/MM/yyyy' }}</small></span>
+                <span class="estado-etiqueta" [class.pendiente]="ticket.estado === 'PENDIENTE_CONFIRMACION'" [class.atencion]="ticket.estado === 'EN_ATENCION'" [class.resuelto]="ticket.estado === 'RESUELTO'">{{ etiquetaEstado(ticket.estado) }}</span>
+              </button>
+            } @empty {
+              <div class="vacio"><img class="vacio-icono" src="/assets/nav-empty.svg" alt="" /><strong>Aún no hay solicitudes</strong><p>Registra tu primer ticket para comenzar.</p></div>
+            }
+          </section>
+          <section class="panel panel-ayuda">
+            <div class="ayuda-contenido">
+              <img class="ayuda-icono" src="/assets/nav-help.svg" alt="" />
+              <h2>¿Necesitas ayuda?</h2>
+              <p>Reporta un inconveniente con MAIA, EvaluIA o Moodle. Clasificaremos tu solicitud y te mostraremos el siguiente paso.</p>
+              <button class="boton boton-amarillo" type="button" (click)="cambiarVista('solicitudes')">Crear una solicitud <span aria-hidden="true">→</span></button>
+            </div>
+          </section>
+        </div>
+      } @else if (vista() === 'solicitudes') {
+        <div class="encabezado"><div><h1>Mis <em>solicitudes</em></h1><p class="subtitulo">Registra una nueva solicitud o revisa las respuestas recibidas.</p></div></div>
+        <div class="dos-columnas">
+          <section class="panel formulario-panel"><div class="panel-cabecera"><div><h2>Cuéntanos qué sucede</h2></div></div>
+            <form (ngSubmit)="crearTicket()">
+              <label for="sistema">Plataforma</label><select id="sistema" name="sistema" [(ngModel)]="formulario.origen_sistema" required><option value="MAIA">MAIA</option><option value="EvaluIA">EvaluIA</option><option value="Moodle">Moodle</option><option value="Otro">Otro sistema</option></select>
+              <label for="solicitante">Usuario o correo institucional</label><input id="solicitante" name="solicitante" type="text" [(ngModel)]="formulario.solicitante" placeholder="ejemplo@unad.edu.co" required />
+              <label for="asunto">Asunto</label><input id="asunto" name="asunto" type="text" [(ngModel)]="formulario.asunto" placeholder="¿En qué necesitas ayuda?" required />
+              <label for="descripcion">Descripción del problema</label><textarea id="descripcion" name="descripcion" rows="5" [(ngModel)]="formulario.descripcion" placeholder="Cuéntanos qué ocurrió y qué estabas intentando hacer..." required></textarea>
+              <button class="boton boton-primario boton-ancho" type="submit" [disabled]="enviando()">{{ enviando() ? 'Registrando...' : 'Enviar solicitud →' }}</button>
+              <p class="nota-form">La solicitud se clasificará automáticamente al enviarla.</p>
+            </form>
+          </section>
+          <section class="panel listado-panel"><div class="panel-cabecera"><div><h2>Solicitudes registradas</h2></div><span class="contador">{{ visibles().length }}</span></div>
+            <div class="filtros"><input type="search" aria-label="Buscar solicitudes" placeholder="Buscar por asunto, usuario o ID" [ngModel]="busqueda()" (ngModelChange)="busqueda.set($event)" /><select aria-label="Filtrar por estado" [ngModel]="filtro()" (ngModelChange)="filtro.set($event)"><option value="TODOS">Todos los estados</option><option value="PENDIENTE_CONFIRMACION">Por confirmar</option><option value="EN_ATENCION">En atención</option><option value="RESUELTO">Resueltos</option><option value="ABIERTO">Abiertos</option></select></div>
+            <div class="listado-scroll">
+              @for (ticket of visibles(); track ticket.id) {
+                <button type="button" class="item-ticket" [class.seleccionado]="seleccionadoId() === ticket.id" (click)="seleccionar(ticket)"><div class="item-superior"><strong>#{{ ticket.id }} · {{ ticket.asunto }}</strong><span class="estado-etiqueta" [class.pendiente]="ticket.estado === 'PENDIENTE_CONFIRMACION'" [class.atencion]="ticket.estado === 'EN_ATENCION'" [class.resuelto]="ticket.estado === 'RESUELTO'">{{ etiquetaEstado(ticket.estado) }}</span></div><small>{{ ticket.origen_sistema }} · {{ ticket.solicitante }}</small></button>
+              } @empty {<div class="vacio"><span>◎</span><strong>Sin resultados</strong><p>Prueba otro filtro o registra una solicitud.</p></div>}
+            </div>
+          </section>
+        </div>
+        <section class="panel detalle-panel" aria-label="Detalle de solicitud">
+          @if (seleccion(); as ticket) {
+            <div class="panel-cabecera"><div><p class="sobrelinea">DETALLE DEL TICKET #{{ ticket.id }}</p><h2>{{ ticket.asunto }}</h2></div><span class="categoria" [class.tecnica]="ticket.categoria === 'TÉCNICO'">{{ etiquetaCategoria(ticket.categoria) }}</span></div>
+            <div class="detalle-meta"><span><b>Sistema:</b> {{ ticket.origen_sistema }}</span><span><b>Solicitante:</b> {{ ticket.solicitante }}</span><span><b>Estado:</b> {{ etiquetaEstado(ticket.estado) }}</span></div>
+            <p class="detalle-descripcion">{{ ticket.descripcion }}</p>
+            @if (ticket.motivo_clasificacion) {<p class="explicacion"><strong>Motivo de clasificación:</strong> {{ ticket.motivo_clasificacion }}</p>}
+            @if (ticket.respuesta_sugerida) {<div class="sugerencia"><strong>✳ Solución sugerida</strong><p>{{ ticket.respuesta_sugerida }}</p></div>}
+            @if (ticket.estado === 'PENDIENTE_CONFIRMACION') {<div class="confirmacion"><strong>¿Esta solución resolvió tu solicitud?</strong><div class="botones"><button type="button" class="boton boton-primario" [disabled]="enviando()" (click)="confirmar(true)">✓ Sí, funcionó</button><button type="button" class="boton boton-secundario" [disabled]="enviando()" (click)="confirmar(false)">No, necesito ayuda</button></div></div>}
+            @if (ticket.respuesta_atencion) {<div class="respuesta"><strong>Respuesta del equipo de soporte</strong><p>{{ ticket.respuesta_atencion }}</p></div>}
+            @if (ticket.estado === 'EN_ATENCION') {<p class="nota-proceso">Tu solicitud está en atención por {{ ticket.responsable === 'soporte_tecnico' ? 'soporte técnico' : 'soporte funcional' }}.</p>}
+          } @else {<div class="vacio"><span>▤</span><strong>Selecciona una solicitud</strong><p>Podrás consultar su clasificación, estado y solución propuesta.</p></div>}
+        </section>
+      } @else {
+        <div class="encabezado"><div><h1>Panel de <em>soporte</em></h1><p class="subtitulo">Consulta los casos en atención y registra las soluciones aplicadas.</p></div><span class="contador-grande">{{ enAtencion() }} en atención</span></div>
+        <div class="dos-columnas soporte-columnas">
+          <section class="panel listado-panel"><div class="panel-cabecera"><div><h2>Tickets por atender</h2></div><span class="contador">{{ paraSoporte().length }}</span></div>
+            <div class="listado-scroll">
+              @for (ticket of paraSoporte(); track ticket.id) {
+                <button type="button" class="item-ticket" [class.seleccionado]="seleccionadoId() === ticket.id" (click)="seleccionar(ticket)"><div class="item-superior"><strong>#{{ ticket.id }} · {{ ticket.asunto }}</strong><span class="categoria" [class.tecnica]="ticket.categoria === 'TÉCNICO'">{{ etiquetaCategoria(ticket.categoria) }}</span></div><small>{{ ticket.origen_sistema }} · {{ ticket.responsable }}</small></button>
+              } @empty {<div class="vacio"><span>✓</span><strong>Bandeja al día</strong><p>No hay tickets pendientes de atención.</p></div>}
+            </div>
+          </section>
+          <section class="panel atencion-panel">
+            @if (seleccion(); as ticket) {
+              @if (ticket.estado === 'EN_ATENCION') {
+                <div class="panel-cabecera"><div><p class="sobrelinea">ATENCIÓN DEL CASO #{{ ticket.id }}</p><h2>{{ ticket.asunto }}</h2></div><span class="categoria" [class.tecnica]="ticket.categoria === 'TÉCNICO'">{{ etiquetaCategoria(ticket.categoria) }}</span></div>
+                <p class="detalle-descripcion">{{ ticket.descripcion }}</p>
+                <p class="explicacion"><strong>Asignado a:</strong> {{ ticket.responsable }}. {{ ticket.motivo_clasificacion }}</p>
+                <form (ngSubmit)="resolver()"><label for="respuesta">Respuesta de atención</label><textarea id="respuesta" name="respuesta" rows="6" [(ngModel)]="respuestaAtencion" required placeholder="Describe las acciones realizadas y la solución proporcionada..."></textarea><button type="submit" class="boton boton-primario boton-ancho" [disabled]="enviando()">{{ enviando() ? 'Guardando...' : '✓ Registrar respuesta y resolver' }}</button></form>
+              } @else {<div class="vacio"><span>✓</span><strong>Ticket finalizado</strong><p>Selecciona otro ticket de la bandeja de atención.</p></div>}
+            } @else {<div class="vacio"><span>◈</span><strong>Selecciona un caso</strong><p>Los tickets funcionales y técnicos aparecerán aquí.</p></div>}
+          </section>
+        </div>
+      }
+    </main>
+  </div>
+</div>
