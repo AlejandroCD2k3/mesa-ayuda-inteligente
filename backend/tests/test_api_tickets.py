@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -51,7 +51,7 @@ def test_crear_ticket(cliente):
 
     assert ticket["id"] is not None
     assert ticket["asunto"] == "No puedo acceder"
-    assert ticket["categoria"] is None
+    assert ticket["categoria"] == "FUNCIONAL"
     assert ticket["estado"] == "ABIERTO"
     assert ticket["responsable"] is None
     assert ticket["fecha_creacion"] is not None
@@ -135,3 +135,47 @@ def test_health_mediante_api(cliente):
 
     assert respuesta.status_code == 200
     assert respuesta.json() == {"status": "ok"}
+
+def test_clasificacion_al_crear_ticket(cliente):
+    respuesta = cliente.post(
+        "/api/tickets",
+        json={
+            "origen_sistema": "MAIA",
+            "solicitante": "usuario.demo",
+            "asunto": "¿Dónde encuentro mis actividades?",
+            "descripcion": "Quiero consultar las actividades del curso.",
+        },
+    )
+
+    assert respuesta.status_code == 201
+    ticket = respuesta.json()
+
+    assert ticket["categoria"] == "AUTO"
+    assert ticket["motivo_clasificacion"]
+    assert ticket["estado"] == "ABIERTO"
+
+
+def test_reclasificacion_al_editar_ticket(cliente):
+    creado = cliente.post(
+        "/api/tickets",
+        json={
+            "origen_sistema": "EvaluIA",
+            "solicitante": "usuario.demo",
+            "asunto": "Consulta de acceso",
+            "descripcion": "Necesito ayuda para entrar.",
+        },
+    ).json()
+
+    assert creado["categoria"] == "FUNCIONAL"
+
+    respuesta = cliente.patch(
+        f"/api/tickets/{creado['id']}",
+        json={"descripcion": "El servidor devuelve HTTP 500 al conectar Moodle."},
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["categoria"] == "TÉCNICO"
+    assert respuesta.json()["motivo_clasificacion"]
+
+    guardado = cliente.get(f"/api/tickets/{creado['id']}").json()
+    assert guardado["categoria"] == "TÉCNICO"

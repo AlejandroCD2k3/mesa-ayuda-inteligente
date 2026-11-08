@@ -76,3 +76,22 @@ Para ejecutar el servidor desde `backend`:
     uv run uvicorn app.main:app --reload
 
 Documentacion interactiva: http://127.0.0.1:8000/docs
+
+## Clasificacion de tickets
+
+Al registrar un ticket, la API asigna una categoria:
+
+- `AUTO`: consulta frecuente que puede recibir una solucion sugerida.
+- `FUNCIONAL`: solicitud que necesita atencion funcional.
+- `TÉCNICO`: fallo de servidor, API o integracion identificado.
+
+Cada clasificacion incluye un motivo que se guarda con el ticket.
+
+Si se modifica el asunto o la descripcion, la API vuelve a clasificar
+la solicitud.
+
+La version actual utiliza reglas sencillas para los escenarios del
+prototipo. No es un clasificador de lenguaje general.
+
+La clasificacion no resuelve el ticket ni asigna un responsable.
+Estas acciones se implementaran en las siguientes etapas.
