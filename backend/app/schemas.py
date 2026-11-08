@@ -30,3 +30,9 @@ class ConfirmacionSolucion(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     resuelta: bool
+
+
+class RespuestaAtencion(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    respuesta: str = Field(min_length=1)

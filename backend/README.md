@@ -125,3 +125,49 @@ para cualquier solicitud.
 
 La API utiliza identidades de demostracion; todavia no
 autentica al solicitante que confirma la solucion.
+
+## Atencion funcional y tecnica
+
+Los tickets que no reciben una solucion automatica
+se asignan al equipo correspondiente:
+
+- `FUNCIONAL`: responsable `soporte_funcional`.
+- `TÉCNICO`: responsable `soporte_tecnico`.
+
+Ambos comienzan en estado `EN_ATENCION`.
+
+Los tickets `AUTO` cuya sugerencia es rechazada tambien
+pasan a atencion funcional.
+
+### Registrar una resolucion
+
+Endpoint:
+
+    POST /api/tickets/{ticket_id}/resolver
+
+Ejemplo de solicitud:
+
+    {"respuesta": "Se soluciono el inconveniente reportado."}
+
+Una resolucion valida guarda la respuesta del equipo
+en `respuesta_atencion` y cambia el estado a `RESUELTO`.
+
+Las operaciones incompatibles con el estado del ticket
+se rechazan con HTTP 409.
+
+### Compatibilidad SQLite
+
+El nuevo campo `respuesta_atencion` se agrega al iniciar
+la aplicacion si no existe en una base anterior.
+
+La actualizacion conserva los registros existentes.
+Las pruebas verifican esta compatibilidad.
+
+### Limitaciones del prototipo
+
+Los responsables son identificadores de equipos de
+demostracion. Todavia no existe autenticacion ni control
+de permisos para el personal de soporte.
+
+La API no debe exponerse publicamente como servicio
+de produccion sin incorporar estas protecciones.

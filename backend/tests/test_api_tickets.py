@@ -52,8 +52,8 @@ def test_crear_ticket(cliente):
     assert ticket["id"] is not None
     assert ticket["asunto"] == "No puedo acceder"
     assert ticket["categoria"] == "FUNCIONAL"
-    assert ticket["estado"] == "ABIERTO"
-    assert ticket["responsable"] is None
+    assert ticket["estado"] == "EN_ATENCION"
+    assert ticket["responsable"] == "soporte_funcional"
     assert ticket["fecha_creacion"] is not None
 
 
@@ -90,7 +90,7 @@ def test_actualizar_ticket(cliente):
     assert respuesta.status_code == 200
     assert respuesta.json()["asunto"] == "Problema de autenticación"
     assert respuesta.json()["descripcion"] == creado["descripcion"]
-    assert respuesta.json()["estado"] == "ABIERTO"
+    assert respuesta.json()["estado"] == "EN_ATENCION"
 
     guardado = cliente.get(f"/api/tickets/{creado['id']}").json()
 
@@ -333,3 +333,122 @@ def test_reclasificacion_a_auto_genera_sugerencia(cliente):
     assert respuesta.json()["categoria"] == "AUTO"
     assert respuesta.json()["estado"] == "PENDIENTE_CONFIRMACION"
     assert respuesta.json()["respuesta_sugerida"]
+def test_resolver_ticket_funcional(cliente):
+    ticket = cliente.post("/api/tickets", json=datos_ticket()).json()
+
+    assert ticket["categoria"] == "FUNCIONAL"
+    assert ticket["estado"] == "EN_ATENCION"
+    assert ticket["responsable"] == "soporte_funcional"
+
+    respuesta = cliente.post(
+        f"/api/tickets/{ticket['id']}/resolver",
+        json={"respuesta": "Se revisaron los permisos del usuario."},
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "RESUELTO"
+    assert respuesta.json()["respuesta_atencion"] == (
+        "Se revisaron los permisos del usuario."
+    )
+
+    guardado = cliente.get(f"/api/tickets/{ticket['id']}").json()
+    assert guardado["respuesta_atencion"] == respuesta.json()["respuesta_atencion"]
+
+
+def test_resolver_ticket_tecnico(cliente):
+    datos = datos_ticket()
+    datos["origen_sistema"] = "EvaluIA"
+    datos["asunto"] = "Error HTTP 500"
+    datos["descripcion"] = "Error de integracion con Moodle."
+
+    ticket = cliente.post("/api/tickets", json=datos).json()
+
+    assert ticket["categoria"] == "TÉCNICO"
+    assert ticket["estado"] == "EN_ATENCION"
+    assert ticket["responsable"] == "soporte_tecnico"
+
+    respuesta = cliente.post(
+        f"/api/tickets/{ticket['id']}/resolver",
+        json={"respuesta": "Se restablecio la integracion con Moodle."},
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "RESUELTO"
+
+
+def test_resolver_ticket_auto_rechazado(cliente):
+    ticket = cliente.post("/api/tickets", json=datos_auto()).json()
+    ruta = f"/api/tickets/{ticket['id']}"
+
+    rechazo = cliente.post(
+        f"{ruta}/confirmacion",
+        json={"resuelta": False},
+    )
+
+    assert rechazo.status_code == 200
+    assert rechazo.json()["responsable"] == "soporte_funcional"
+
+    cierre = cliente.post(
+        f"{ruta}/resolver",
+        json={"respuesta": "Se acompano al estudiante durante la consulta."},
+    )
+
+    assert cierre.status_code == 200
+    assert cierre.json()["estado"] == "RESUELTO"
+    assert cierre.json()["categoria"] == "FUNCIONAL"
+    assert cierre.json()["respuesta_sugerida"]
+    assert cierre.json()["respuesta_atencion"]
+
+
+def test_no_resolver_auto_pendiente(cliente):
+    ticket = cliente.post("/api/tickets", json=datos_auto()).json()
+
+    respuesta = cliente.post(
+        f"/api/tickets/{ticket['id']}/resolver",
+        json={"respuesta": "Atendido."},
+    )
+
+    assert respuesta.status_code == 409
+
+    guardado = cliente.get(f"/api/tickets/{ticket['id']}").json()
+    assert guardado["estado"] == "PENDIENTE_CONFIRMACION"
+
+
+def test_no_resolver_dos_veces(cliente):
+    ticket = cliente.post("/api/tickets", json=datos_ticket()).json()
+    ruta = f"/api/tickets/{ticket['id']}/resolver"
+
+    primera = cliente.post(ruta, json={"respuesta": "Caso atendido."})
+    segunda = cliente.post(ruta, json={"respuesta": "Otra respuesta."})
+
+    assert primera.status_code == 200
+    assert segunda.status_code == 409
+
+    guardado = cliente.get(f"/api/tickets/{ticket['id']}").json()
+    assert guardado["respuesta_atencion"] == "Caso atendido."
+
+
+def test_resolucion_rechaza_datos_invalidos(cliente):
+    ticket = cliente.post("/api/tickets", json=datos_ticket()).json()
+    ruta = f"/api/tickets/{ticket['id']}/resolver"
+
+    for datos in (
+        {},
+        {"respuesta": ""},
+        {"respuesta": "   "},
+        {"respuesta": None},
+        {"respuesta": "Atendido", "estado": "RESUELTO"},
+    ):
+        assert cliente.post(ruta, json=datos).status_code == 422
+
+    guardado = cliente.get(f"/api/tickets/{ticket['id']}").json()
+    assert guardado["estado"] == "EN_ATENCION"
+
+
+def test_resolver_ticket_inexistente(cliente):
+    respuesta = cliente.post(
+        "/api/tickets/999/resolver",
+        json={"respuesta": "Caso atendido."},
+    )
+
+    assert respuesta.status_code == 404

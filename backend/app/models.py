@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 from enum import Enum
 
 from sqlmodel import Field, SQLModel
@@ -37,6 +37,7 @@ class Ticket(SQLModel, table=True):
 
     motivo_clasificacion: str | None = Field(default=None)
     respuesta_sugerida: str | None = Field(default=None)
+    respuesta_atencion: str | None = Field(default=None)
 
     fecha_creacion: datetime = Field(default_factory=ahora_utc)
     fecha_actualizacion: datetime = Field(default_factory=ahora_utc)
