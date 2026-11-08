@@ -1,0 +1,28 @@
+name: Cleanup merged branches
+
+on:
+pull_request:
+types: [closed]
+branches: [development]
+
+permissions:
+contents: write
+
+jobs:
+cleanup:
+if: >-
+github.event.pull_request.merged == true &&
+github.event.pull_request.head.repo.full_name == github.repository &&
+github.event.pull_request.head.ref != 'main' &&
+github.event.pull_request.head.ref != 'development'
+
+runs-on: ubuntu-latest
+
+steps:
+- name: Delete temporary branch
+env:
+GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+SOURCE_BRANCH: ${{ github.event.pull_request.head.ref }}
+run: |
+gh api --method DELETE 
+"repos/$GITHUB_REPOSITORY/git/refs/heads/$SOURCE_BRANCH"
