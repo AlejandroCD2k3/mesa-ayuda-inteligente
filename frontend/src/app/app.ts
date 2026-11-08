@@ -1,12 +1,24 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+﻿import { HttpClient } from '@angular/common/http';
+import { Component, inject, OnInit, signal } from '@angular/core';
 
 @Component({
-  imports: [RouterOutlet],
   selector: 'app-root',
-  styleUrl: './app.css',
   templateUrl: './app.html',
+  styleUrl: './app.css'
 })
-export class App {
-  protected readonly title = signal('mesa-ayuda-frontend');
+export class App implements OnInit {
+  private readonly http = inject(HttpClient);
+
+  protected readonly estado = signal<'comprobando' | 'conectada' | 'sin-conexion'>('comprobando');
+
+  ngOnInit(): void {
+    this.http.get<{ status: string }>('/api/health').subscribe({
+      next: (respuesta) => {
+        this.estado.set(respuesta.status === 'ok' ? 'conectada' : 'sin-conexion');
+      },
+      error: () => {
+        this.estado.set('sin-conexion');
+      }
+    });
+  }
 }
