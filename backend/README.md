@@ -53,3 +53,26 @@ Para ejecutar todas las pruebas:
     uv run python -m pytest -q
 
 Las pruebas de persistencia utilizan bases temporales.
+
+## API REST de tickets
+
+La API permite registrar, consultar y editar solicitudes.
+
+Endpoints disponibles:
+
+- `POST /api/tickets`: registrar una solicitud.
+- `GET /api/tickets`: listar solicitudes.
+- `GET /api/tickets/{id}`: consultar una solicitud.
+- `PATCH /api/tickets/{id}`: actualizar asunto o descripcion.
+
+Los tickets nuevos comienzan abiertos y sin clasificar.
+Los cambios de categoria, estado y responsable se implementaran
+en las siguientes etapas del flujo de atencion.
+
+La base SQLite se inicializa al arrancar FastAPI.
+
+Para ejecutar el servidor desde `backend`:
+
+    uv run uvicorn app.main:app --reload
+
+Documentacion interactiva: http://127.0.0.1:8000/docs
