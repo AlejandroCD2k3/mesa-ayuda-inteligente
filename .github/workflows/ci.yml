@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - development
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Angular
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Obtener codigo
+        uses: actions/checkout@v7
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar pruebas
+        run: npm test -- --watch=false
+
+      - name: Compilar Angular
+        run: npm run build
+
+  backend:
+    name: FastAPI
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Obtener codigo
+        uses: actions/checkout@v7
+
+      - name: Configurar uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.12.0"
+          python-version: "3.12"
+
+      - name: Instalar Python
+        run: uv python install 3.12
+
+      - name: Instalar dependencias
+        run: uv sync --locked
+
+      - name: Ejecutar pruebas
+        run: uv run --locked python -m pytest -q
