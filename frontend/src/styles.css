@@ -388,3 +388,61 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .acceso-contenido { padding: 20px; }
   .usuario-activo { display: none; }
 }
+
+/* Historial cronologico integrado, sin tarjetas adicionales. */
+
+.historial-panel {
+  margin-top: 22px;
+}
+
+.historial-mensaje {
+  color: #60738e;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.historial-lista {
+  list-style: none;
+  margin: 22px 0 0 6px;
+  padding: 0 0 0 22px;
+  border-left: 1px solid #bac9d9;
+}
+
+.historial-evento {
+  position: relative;
+  padding: 0 0 23px;
+}
+
+.historial-evento:last-child {
+  padding-bottom: 0;
+}
+
+.historial-evento::before {
+  content: '';
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  left: -27px;
+  top: 5px;
+  border: 2px solid #276b9d;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.historial-evento strong {
+  display: block;
+  color: #24466b;
+  font-size: 13px;
+}
+
+.historial-evento p {
+  margin: 6px 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #526b84;
+}
+
+.historial-evento small {
+  font-size: 11px;
+  color: #70829a;
+}
