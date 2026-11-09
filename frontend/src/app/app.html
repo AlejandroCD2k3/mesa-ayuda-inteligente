@@ -53,6 +53,14 @@
           <img class="menu-icono" src="/assets/nav-soporte.svg" alt="" /><span>Panel de soporte</span>
         </button>
       }
+      <button
+        type="button"
+        [class.activo]="vista() === 'conocimiento'"
+        (click)="cambiarVista('conocimiento')"
+      >
+        <img class="menu-icono" src="/assets/nav-doc.svg" alt="" />
+        <span>Centro de conocimiento</span>
+      </button>
     </nav>
 
     <div class="lateral-inferior">
@@ -62,7 +70,7 @@
 
   <div class="principal">
     <header class="barra-superior">
-      <div class="ruta">Plataforma <span>/</span> <strong>{{ vista() === 'resumen' ? 'Vista general' : vista() === 'soporte' ? 'Panel de soporte' : 'Mis solicitudes' }}</strong></div>
+      <div class="ruta">Plataforma <span>/</span> <strong>{{ vista() === 'resumen' ? 'Vista general' : vista() === 'soporte' ? 'Panel de soporte' : vista() === 'conocimiento' ? 'Centro de conocimiento' : 'Mis solicitudes' }}</strong></div>
       <div class="barra-acciones">
         <span class="usuario-activo">{{ usuario()?.nombre }}</span>
         <button type="button" class="cambiar-usuario" (click)="cerrarSesion()">Cambiar perfil</button>
@@ -155,7 +163,7 @@
             @if (ticket.estado === 'EN_ATENCION') {<p class="nota-proceso">Tu solicitud está en atención por {{ ticket.responsable === 'soporte_tecnico' ? 'soporte técnico' : 'soporte funcional' }}.</p>}
           } @else {<div class="vacio"><span>▤</span><strong>Selecciona una solicitud</strong><p>Podrás consultar su clasificación, estado y solución propuesta.</p></div>}
         </section>
-      } @else {
+      } @else if (vista() === 'soporte') {
         <div class="encabezado"><div><h1>Panel de <em>soporte</em></h1><p class="subtitulo">Consulta los casos en atención y registra las soluciones aplicadas.</p></div><span class="contador-grande">{{ enAtencion() }} en atención</span></div>
         <div class="dos-columnas soporte-columnas">
           <section class="panel listado-panel"><div class="panel-cabecera"><div><h2>Tickets por atender</h2></div><span class="contador">{{ paraSoporte().length }}</span></div>
@@ -176,8 +184,202 @@
             } @else {<div class="vacio"><span>◈</span><strong>Selecciona un caso</strong><p>Los tickets funcionales y técnicos aparecerán aquí.</p></div>}
           </section>
         </div>
+      } @else if (vista() === 'conocimiento') {
+        <div class="encabezado">
+          <div>
+            <h1>Centro de <em>conocimiento</em></h1>
+            <p class="subtitulo">
+              Soluciones y procedimientos de ayuda disponibles para consulta.
+            </p>
+          </div>
+        </div>
+
+        <section class="panel conocimiento-panel"
+                 aria-label="Centro de conocimiento">
+
+          <div class="panel-cabecera">
+            <h2>Artículos de ayuda</h2>
+            <span class="contador">{{ articulos().length }}</span>
+          </div>
+
+          <form class="conocimiento-busqueda"
+                (ngSubmit)="cargarArticulos()">
+
+            <label for="buscar-conocimiento">
+              Buscar solución
+            </label>
+
+            <div class="conocimiento-busqueda-controles">
+              <input
+                id="buscar-conocimiento"
+                name="buscar-conocimiento"
+                type="search"
+                [ngModel]="busquedaArticulos()"
+                (ngModelChange)="busquedaArticulos.set($event)"
+                placeholder="Ej. acceso, Moodle, contraseña"
+              />
+              <button class="boton boton-secundario"
+                      type="submit">
+                Buscar
+              </button>
+            </div>
+          </form>
+
+          @if (cargandoArticulos()) {
+            <p class="historial-mensaje" role="status">
+              Consultando artículos...
+            </p>
+          } @else if (
+            errorArticulos() && articulos().length === 0
+          ) {
+            <p class="historial-mensaje" role="alert">
+              {{ errorArticulos() }}
+            </p>
+            <button type="button"
+                    class="enlace"
+                    (click)="cargarArticulos()">
+              Reintentar
+            </button>
+          } @else {
+            <div class="conocimiento-articulos">
+              @for (articulo of articulos(); track articulo.id) {
+                <article class="conocimiento-articulo">
+
+                  <div class="conocimiento-articulo-titulo">
+                    <h3>{{ articulo.titulo }}</h3>
+                    <span
+                      class="categoria"
+                      [class.tecnica]="articulo.categoria === 'TÉCNICO'"
+                    >
+                      {{ etiquetaCategoria(articulo.categoria) }}
+                    </span>
+                  </div>
+
+                  @if (!articulo.publicado) {
+                    <small class="conocimiento-borrador">
+                      Borrador · No publicado
+                    </small>
+                  }
+
+                  <p class="conocimiento-contenido">
+                    {{ articulo.contenido }}
+                  </p>
+
+                  @if (puedeEditarArticulo(articulo)) {
+                    <button
+                      class="enlace"
+                      type="button"
+                      (click)="editarArticulo(articulo)"
+                    >
+                      Editar artículo
+                    </button>
+                  }
+                </article>
+              } @empty {
+                <p class="historial-mensaje">
+                  No hay artículos para mostrar. Prueba otra búsqueda.
+                </p>
+              }
+            </div>
+          }
+        </section>
+
+        @if (!esEstudiante()) {
+          <section class="panel conocimiento-editor"
+                   aria-label="Editor de artículos">
+
+            <div class="panel-cabecera">
+              <h2>
+                {{ editandoArticuloId() === null
+                  ? 'Nuevo artículo'
+                  : 'Editar artículo' }}
+              </h2>
+            </div>
+
+            <form (ngSubmit)="guardarArticulo()">
+
+              <label for="articulo-titulo">Título</label>
+              <input
+                id="articulo-titulo"
+                name="articulo-titulo"
+                [(ngModel)]="formularioArticulo.titulo"
+                required
+                placeholder="Ej. Recuperar acceso a MAIA"
+              />
+
+              <label for="articulo-categoria">Categoría</label>
+              <select
+                id="articulo-categoria"
+                name="articulo-categoria"
+                [(ngModel)]="formularioArticulo.categoria"
+                [disabled]="editandoArticuloId() !== null"
+              >
+                @if (usuario()?.rol === 'soporte_funcional') {
+                  <option value="FUNCIONAL">Funcional</option>
+                  <option value="AUTO">Automático</option>
+                } @else {
+                  <option value="TÉCNICO">Técnico</option>
+                }
+              </select>
+
+              <label for="articulo-contenido">
+                Solución o procedimiento
+              </label>
+              <textarea
+                id="articulo-contenido"
+                name="articulo-contenido"
+                rows="6"
+                [(ngModel)]="formularioArticulo.contenido"
+                required
+                placeholder="Describe los pasos de la solución..."
+              ></textarea>
+
+              <label class="conocimiento-publicar">
+                <input
+                  type="checkbox"
+                  name="articulo-publicado"
+                  [(ngModel)]="formularioArticulo.publicado"
+                />
+                Publicado (visible para estudiantes)
+              </label>
+
+              @if (errorArticulos()) {
+                <p class="historial-mensaje" role="alert">
+                  {{ errorArticulos() }}
+                </p>
+              }
+
+              <div class="botones">
+                <button
+                  class="boton boton-primario"
+                  type="submit"
+                  [disabled]="guardandoArticulo()"
+                >
+                  {{ guardandoArticulo()
+                    ? 'Guardando...'
+                    : (editandoArticuloId() === null
+                        ? 'Crear artículo'
+                        : 'Guardar cambios') }}
+                </button>
+
+                @if (editandoArticuloId() !== null) {
+                  <button
+                    class="boton boton-secundario"
+                    type="button"
+                    (click)="nuevoArticulo()"
+                  >
+                    Cancelar edición
+                  </button>
+                }
+              </div>
+            </form>
+          </section>
+        }
       }
-      @if (vista() !== 'resumen' && seleccion(); as ticket) {
+      @if (
+        (vista() === 'solicitudes' || vista() === 'soporte')
+        && seleccion(); as ticket
+      ) {
         <section
           class="panel historial-panel"
           aria-label="Historial de la solicitud"

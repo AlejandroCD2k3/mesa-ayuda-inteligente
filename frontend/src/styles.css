@@ -446,3 +446,81 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size: 11px;
   color: #70829a;
 }
+
+/* Centro de conocimiento UNAD: filas editoriales sencillas. */
+
+.conocimiento-panel,
+.conocimiento-editor {
+  margin-top: 18px;
+}
+
+.conocimiento-busqueda {
+  margin: 16px 0 6px;
+}
+
+.conocimiento-busqueda-controles {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.conocimiento-busqueda-controles input {
+  flex: 1;
+  min-width: 0;
+}
+
+.conocimiento-articulos {
+  margin-top: 20px;
+}
+
+.conocimiento-articulo {
+  padding: 20px 0;
+  border-top: 1px solid #dce5ee;
+}
+
+.conocimiento-articulo-titulo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.conocimiento-articulo h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #183d67;
+}
+
+.conocimiento-contenido {
+  white-space: pre-wrap;
+  line-height: 1.65;
+  font-size: 13px;
+  color: #4e6077;
+}
+
+.conocimiento-borrador {
+  display: block;
+  padding-top: 5px;
+  color: #8a5c26;
+}
+
+.conocimiento-editor form {
+  display: grid;
+  gap: 10px;
+}
+
+.conocimiento-publicar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.conocimiento-publicar input {
+  width: auto;
+}
+
+@media (max-width: 600px) {
+  .conocimiento-busqueda-controles {
+    flex-direction: column;
+  }
+}
