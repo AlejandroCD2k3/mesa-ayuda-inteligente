@@ -1,0 +1,33 @@
+<main class="acceso-demo">
+    <section class="acceso-contenido" aria-labelledby="titulo-acceso">
+      <img src="/assets/marca-unad.png" alt="UNAD — Universidad Nacional Abierta y a Distancia" class="acceso-logo" />
+
+      <h1 id="titulo-acceso">Selecciona un perfil</h1>
+      <p>Elige una identidad para explorar la mesa de ayuda. No se solicitan credenciales institucionales.</p>
+
+      @if (error) {
+        <div class="alerta alerta-error" role="alert">{{ error }}</div>
+      }
+
+      <div class="acceso-lista">
+        @for (perfil of perfiles; track perfil.id) {
+          <button
+            type="button"
+            class="acceso-perfil"
+            [disabled]="iniciando"
+            (click)="seleccionar.emit(perfil.id)"
+          >
+            <span>
+              <strong>{{ perfil.nombre }}</strong>
+              <small>{{ perfil.rol === 'estudiante' ? 'Consulta y seguimiento de solicitudes' : 'Atención del equipo asignado' }}</small>
+            </span>
+            <span aria-hidden="true">→</span>
+          </button>
+        } @empty {
+          <p class="acceso-cargando">Consultando perfiles disponibles...</p>
+        }
+      </div>
+
+
+    </section>
+  </main>
