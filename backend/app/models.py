@@ -41,3 +41,14 @@ class Ticket(SQLModel, table=True):
 
     fecha_creacion: datetime = Field(default_factory=ahora_utc)
     fecha_actualizacion: datetime = Field(default_factory=ahora_utc)
+
+
+class TicketEvento(SQLModel, table=True):
+    __tablename__ = "ticket_eventos"
+
+    id: int | None = Field(default=None, primary_key=True)
+    ticket_id: int = Field(foreign_key="tickets.id", index=True)
+    tipo: str
+    detalle: str
+    actor: str
+    fecha: datetime = Field(default_factory=ahora_utc)

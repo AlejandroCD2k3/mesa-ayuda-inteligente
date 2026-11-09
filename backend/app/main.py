@@ -7,7 +7,7 @@ from .clasificacion import clasificar_ticket
 from .sesiones_demo import UsuarioDemo, obtener_usuario_demo, router as router_demo
 from .database import get_session, init_db
 from .soluciones import sugerir_solucion
-from .models import CategoriaTicket, EstadoTicket, Ticket, ahora_utc
+from .models import CategoriaTicket, EstadoTicket, Ticket, TicketEvento, ahora_utc
 from .schemas import ConfirmacionSolucion, RespuestaAtencion, TicketCreate, TicketUpdate
 
 
@@ -96,6 +96,24 @@ def preparar_ticket(ticket: Ticket) -> None:
             else "soporte_funcional"
         )
 
+def registrar_evento(
+    session: Session,
+    ticket: Ticket,
+    tipo: str,
+    detalle: str,
+    actor: str,
+) -> None:
+    if ticket.id is None:
+        raise RuntimeError("El ticket debe tener identificador.")
+
+    session.add(TicketEvento(
+        ticket_id=ticket.id,
+        tipo=tipo,
+        detalle=detalle,
+        actor=actor,
+    ))
+
+
 @app.post("/api/tickets", response_model=Ticket, status_code=201)
 def crear_ticket(
     datos: TicketCreate,
@@ -112,6 +130,26 @@ def crear_ticket(
     preparar_ticket(ticket)
 
     session.add(ticket)
+    session.flush()
+
+    registrar_evento(
+        session, ticket, "CREACION",
+        "Solicitud registrada.", usuario.id,
+    )
+
+    registrar_evento(
+        session, ticket, "CLASIFICACION",
+        f"Clasificado como {ticket.categoria.value}.",
+        "sistema",
+    )
+
+    if ticket.responsable:
+        registrar_evento(
+            session, ticket, "ASIGNACION",
+            f"Asignado a {ticket.responsable}.",
+            "sistema",
+        )
+
     session.commit()
     session.refresh(ticket)
 
@@ -153,6 +191,29 @@ def obtener_ticket(
     return ticket
 
 
+@app.get("/api/tickets/{ticket_id}/eventos", response_model=list[TicketEvento])
+def listar_eventos(
+    ticket_id: int,
+    session: Session = Depends(get_session),
+    usuario: UsuarioDemo = Depends(obtener_usuario_demo),
+):
+    ticket = session.get(Ticket, ticket_id)
+
+    if ticket is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket no encontrado",
+        )
+
+    exigir_acceso(ticket, usuario)
+
+    return session.exec(
+        select(TicketEvento)
+        .where(TicketEvento.ticket_id == ticket_id)
+        .order_by(TicketEvento.id)
+    ).all()
+
+
 @app.patch("/api/tickets/{ticket_id}", response_model=Ticket)
 def actualizar_ticket(
     ticket_id: int,
@@ -177,6 +238,9 @@ def actualizar_ticket(
             detail="El ticket no admite ediciones en su estado actual.",
         )
 
+    categoria_anterior = ticket.categoria
+    responsable_anterior = ticket.responsable
+
     for campo, valor in datos.model_dump(exclude_unset=True).items():
         setattr(ticket, campo, valor)
 
@@ -184,6 +248,27 @@ def actualizar_ticket(
     ticket.fecha_actualizacion = ahora_utc()
 
     session.add(ticket)
+
+    registrar_evento(
+        session, ticket, "ACTUALIZACION",
+        "El solicitante actualizo los datos del ticket.",
+        usuario.id,
+    )
+
+    if ticket.categoria != categoria_anterior:
+        registrar_evento(
+            session, ticket, "CLASIFICACION",
+            f"Reclasificado como {ticket.categoria.value}.",
+            "sistema",
+        )
+
+    if ticket.responsable and ticket.responsable != responsable_anterior:
+        registrar_evento(
+            session, ticket, "ASIGNACION",
+            f"Asignado a {ticket.responsable}.",
+            "sistema",
+        )
+
     session.commit()
     session.refresh(ticket)
 
@@ -228,6 +313,20 @@ def confirmar_solucion(
     ticket.fecha_actualizacion = ahora_utc()
 
     session.add(ticket)
+
+    if datos.resuelta:
+        registrar_evento(
+            session, ticket, "CONFIRMACION",
+            "El solicitante confirmo que la solucion funciono.",
+            usuario.id,
+        )
+    else:
+        registrar_evento(
+            session, ticket, "ESCALAMIENTO",
+            "La sugerencia fue rechazada y se remitio a soporte funcional.",
+            usuario.id,
+        )
+
     session.commit()
     session.refresh(ticket)
 
@@ -267,6 +366,13 @@ def resolver_ticket(
     ticket.fecha_actualizacion = ahora_utc()
 
     session.add(ticket)
+
+    registrar_evento(
+        session, ticket, "RESOLUCION",
+        "Soporte registro la respuesta y resolvio la solicitud.",
+        usuario.id,
+    )
+
     session.commit()
     session.refresh(ticket)
 

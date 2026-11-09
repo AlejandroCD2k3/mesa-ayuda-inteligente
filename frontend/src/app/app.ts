@@ -16,6 +16,15 @@ export interface UsuarioDemo {
   rol: RolDemo;
 }
 
+export interface TicketEvento {
+  id: number;
+  ticket_id: number;
+  tipo: string;
+  detalle: string;
+  actor: string;
+  fecha: string;
+}
+
 export interface Ticket {
   id: number;
   origen_sistema: string;
@@ -43,9 +52,13 @@ export class App implements OnInit, OnDestroy {
   private intervalo: ReturnType<typeof setInterval> | undefined;
   private token = '';
   private versionSesion = 0;
+  private versionHistorial = 0;
 
   readonly conexion = signal<'comprobando' | 'conectada' | 'sin-conexion'>('comprobando');
   readonly tickets = signal<Ticket[]>([]);
+  readonly eventos = signal<TicketEvento[]>([]);
+  readonly cargandoEventos = signal(false);
+  readonly errorEventos = signal('');
   readonly perfiles = signal<UsuarioDemo[]>([]);
   readonly usuario = signal<UsuarioDemo | null>(null);
   readonly iniciando = signal(false);
@@ -121,6 +134,7 @@ export class App implements OnInit, OnDestroy {
       clearInterval(this.intervalo);
     }
     this.versionSesion++;
+    this.versionHistorial++;
   }
 
   iniciarPerfil(id: string): void {
@@ -155,6 +169,10 @@ export class App implements OnInit, OnDestroy {
 
   cerrarSesion(): void {
     this.versionSesion++;
+    this.versionHistorial++;
+    this.eventos.set([]);
+    this.cargandoEventos.set(false);
+    this.errorEventos.set('');
     this.token = '';
     this.usuario.set(null);
     this.tickets.set([]);
@@ -214,6 +232,82 @@ export class App implements OnInit, OnDestroy {
     this.seleccionadoId.set(ticket.id);
     this.respuestaAtencion = '';
     this.error.set('');
+    this.cargarEventos(ticket.id);
+  }
+
+  cargarEventos(ticketId: number): void {
+    if (!this.token || this.seleccionadoId() !== ticketId) return;
+
+    const sesion = this.versionSesion;
+    const peticion = ++this.versionHistorial;
+
+    this.eventos.set([]);
+    this.errorEventos.set('');
+    this.cargandoEventos.set(true);
+
+    this.http.get<TicketEvento[]>(
+      `/api/tickets/${ticketId}/eventos`,
+      this.opcionesSesion()
+    ).subscribe({
+      next: (eventos) => {
+        if (
+          sesion !== this.versionSesion ||
+          peticion !== this.versionHistorial ||
+          this.seleccionadoId() !== ticketId
+        ) return;
+
+        this.eventos.set(eventos);
+        this.cargandoEventos.set(false);
+      },
+      error: (error: HttpErrorResponse) => {
+        if (
+          sesion !== this.versionSesion ||
+          peticion !== this.versionHistorial ||
+          this.seleccionadoId() !== ticketId
+        ) return;
+
+        this.cargandoEventos.set(false);
+
+        if (error.status === 401) {
+          this.errorSolicitud(
+            error,
+            'No se pudo consultar el historial.'
+          );
+        } else {
+          this.errorEventos.set(
+            'No fue posible cargar el historial.'
+          );
+        }
+      }
+    });
+  }
+
+  etiquetaEvento(tipo: string): string {
+    const nombres: Record<string, string> = {
+      CREACION: 'Solicitud registrada',
+      CLASIFICACION: 'Clasificación',
+      ASIGNACION: 'Asignación a soporte',
+      ACTUALIZACION: 'Actualización',
+      CONFIRMACION: 'Solución confirmada',
+      ESCALAMIENTO: 'Escalamiento',
+      RESOLUCION: 'Solicitud resuelta'
+    };
+
+    return nombres[tipo] ?? tipo;
+  }
+
+  nombreActor(actor: string): string {
+    if (actor === 'sistema') return 'Sistema';
+
+    return this.perfiles().find(
+      (perfil) => perfil.id === actor
+    )?.nombre ?? actor;
+  }
+
+  fechaEvento(fecha: string): string {
+    return /(?:Z|[+-]\d{2}:\d{2})$/i.test(fecha)
+      ? fecha
+      : `${fecha}Z`;
   }
 
   cargarTickets(mostrarIndicador = true): void {
@@ -229,9 +323,27 @@ export class App implements OnInit, OnDestroy {
       next: (tickets) => {
         if (version !== this.versionSesion) return;
 
+        const anterior = this.seleccion();
+
         this.tickets.set(
           [...tickets].sort((a, b) => b.id - a.id)
         );
+
+        if (anterior) {
+          const actual = this.seleccion();
+
+          if (!actual) {
+            this.seleccionadoId.set(null);
+            this.versionHistorial++;
+            this.eventos.set([]);
+          } else if (
+            actual.fecha_actualizacion !==
+            anterior.fecha_actualizacion
+          ) {
+            this.cargarEventos(actual.id);
+          }
+        }
+
         this.cargando.set(false);
       },
       error: (error: HttpErrorResponse) => {
@@ -280,7 +392,7 @@ export class App implements OnInit, OnDestroy {
         if (version !== this.versionSesion) return;
 
         this.agregarTicket(ticket);
-        this.seleccionadoId.set(ticket.id);
+        this.seleccionar(ticket);
 
         this.formulario = {
           origen_sistema: 'MAIA',
@@ -329,6 +441,11 @@ export class App implements OnInit, OnDestroy {
         if (version !== this.versionSesion) return;
 
         this.actualizarTicket(actualizado);
+
+        if (this.seleccionadoId() === ticket.id) {
+          this.cargarEventos(ticket.id);
+        }
+
         this.enviando.set(false);
 
         this.mensaje.set(resuelta
@@ -380,6 +497,11 @@ export class App implements OnInit, OnDestroy {
         if (version !== this.versionSesion) return;
 
         this.actualizarTicket(actualizado);
+
+        if (this.seleccionadoId() === ticket.id) {
+          this.cargarEventos(ticket.id);
+        }
+
         this.respuestaAtencion = '';
         this.enviando.set(false);
 
