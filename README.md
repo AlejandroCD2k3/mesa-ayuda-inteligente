@@ -153,3 +153,49 @@ en cada una de las dos ventanas de los servidores.
 
 El iniciador esta pensado para el desarrollo y
 la demostracion local en Windows.
+
+
+## Configuracion excepcional de demostracion
+
+Este repositorio contiene una configuracion `.env`
+incluida excepcionalmente para facilitar la evaluacion
+academica del prototipo Mesa de Ayuda Inteligente
+UNAD IA 360.
+
+**Advertencia de seguridad:** esta practica no debe
+utilizarse en entornos de produccion ni con claves
+personales o permanentes.
+
+La credencial incluida esta destinada exclusivamente
+a la demostracion. Quienes tengan acceso al repositorio
+pueden verla y utilizarla. Su inclusion en el historial
+de Git constituye una exposicion deliberada.
+
+La clave debe revocarse al finalizar la evaluacion.
+No debe reutilizarse para otros proyectos.
+
+En un despliegue real, las credenciales deben mantenerse
+fuera del repositorio, mediante variables de entorno
+o un gestor de secretos.
+
+### Ejecucion de la demostracion
+
+1. Descargar o clonar el repositorio.
+2. Instalar las dependencias descritas en este README.
+3. Ejecutar `iniciar-mesa-ayuda-demo.bat`.
+4. Abrir la direccion local que muestra el lanzador.
+5. Utilizar los perfiles de demostracion.
+
+El lanzador de demostracion carga automaticamente
+la configuracion de OpenRouter antes de iniciar
+la aplicacion. No es necesario introducir otra clave.
+
+El modelo configurado es `openrouter/free`, sujeto
+a disponibilidad y limites del servicio.
+
+Si la IA no esta disponible, se utiliza el
+clasificador tradicional.
+
+La autenticacion incluida corresponde a un prototipo
+academico y no debe exponerse publicamente como
+un sistema de produccion.

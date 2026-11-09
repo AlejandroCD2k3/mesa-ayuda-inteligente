@@ -1,4 +1,4 @@
-﻿# Variables privadas
+# Variables privadas
 .env
 .env.*
 !.env.example
@@ -25,3 +25,7 @@ __pycache__/
 .idea/
 Thumbs.db
 .DS_Store
+
+# Credenciales privadas de la IA
+/backend/.env
+!/backend/.env.example
