@@ -1,67 +1,26 @@
 import { DatePipe } from '@angular/common';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { SesionesApiService } from './core/api/sesiones-api.service';
+import { TicketsApiService } from './features/tickets/tickets-api.service';
+import { ConocimientoApiService } from './features/conocimiento/conocimiento-api.service';
+import { AccesoPerfiles } from './features/perfiles/acceso-perfiles';
 import { FormsModule } from '@angular/forms';
 
-type Categoria = 'AUTO' | 'FUNCIONAL' | 'TÉCNICO' | null;
-type Estado = 'ABIERTO' | 'PENDIENTE_CONFIRMACION' | 'EN_ATENCION' | 'RESUELTO';
-type Vista = 'resumen' | 'solicitudes' | 'soporte' | 'conocimiento';
-type Filtro = 'TODOS' | Estado;
-
-type RolDemo = 'estudiante' | 'soporte_funcional' | 'soporte_tecnico';
-
-export interface UsuarioDemo {
-  id: string;
-  nombre: string;
-  rol: RolDemo;
-}
-
-type CategoriaArticulo = 'AUTO' | 'FUNCIONAL' | 'TÉCNICO';
-
-export interface ArticuloConocimiento {
-  id: number;
-  titulo: string;
-  contenido: string;
-  categoria: CategoriaArticulo;
-  publicado: boolean;
-  creado_por: string;
-  fecha_creacion: string;
-  fecha_actualizacion: string;
-}
-
-export interface TicketEvento {
-  id: number;
-  ticket_id: number;
-  tipo: string;
-  detalle: string;
-  actor: string;
-  fecha: string;
-}
-
-export interface Ticket {
-  id: number;
-  origen_sistema: string;
-  solicitante: string;
-  asunto: string;
-  descripcion: string;
-  categoria: Categoria;
-  estado: Estado;
-  responsable: string | null;
-  motivo_clasificacion: string | null;
-  respuesta_sugerida: string | null;
-  respuesta_atencion: string | null;
-  fecha_creacion: string;
-  fecha_actualizacion: string;
-}
+import type { Categoria, Estado, Vista, Filtro, CategoriaArticulo,
+  UsuarioDemo, ArticuloConocimiento, TicketEvento, Ticket } from './core/models';
+export type { UsuarioDemo, ArticuloConocimiento, TicketEvento, Ticket } from './core/models';
 
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, AccesoPerfiles],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App implements OnInit, OnDestroy {
-  private readonly http = inject(HttpClient);
+  private readonly sesionesApi = inject(SesionesApiService);
+  private readonly ticketsApi = inject(TicketsApiService);
+  private readonly conocimientoApi = inject(ConocimientoApiService);
   private intervalo: ReturnType<typeof setInterval> | undefined;
   private token = '';
   private versionSesion = 0;
@@ -142,14 +101,14 @@ export class App implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
-    this.http.get<{ status: string }>('/api/health').subscribe({
+    this.sesionesApi.salud().subscribe({
       next: (respuesta) => this.conexion.set(
         respuesta.status === 'ok' ? 'conectada' : 'sin-conexion'
       ),
       error: () => this.conexion.set('sin-conexion')
     });
 
-    this.http.get<UsuarioDemo[]>('/api/demo/usuarios').subscribe({
+    this.sesionesApi.perfiles().subscribe({
       next: (perfiles) => this.perfiles.set(perfiles),
       error: () => this.error.set(
         'No se pudieron consultar los perfiles de demostración.'
@@ -177,10 +136,7 @@ export class App implements OnInit, OnDestroy {
     const version = this.versionSesion;
     this.iniciando.set(true);
 
-    this.http.post<{ token: string; usuario: UsuarioDemo }>(
-      '/api/demo/sesion',
-      { usuario_id: id }
-    ).subscribe({
+    this.sesionesApi.iniciar(id).subscribe({
       next: (respuesta) => {
         if (version !== this.versionSesion) return;
 
@@ -244,14 +200,6 @@ export class App implements OnInit, OnDestroy {
     this.error.set('');
   }
 
-  private opcionesSesion() {
-    return {
-      headers: {
-        Authorization: `Bearer ${this.token}`
-      }
-    };
-  }
-
   private errorSolicitud(
     error: HttpErrorResponse,
     mensaje: string
@@ -292,10 +240,7 @@ export class App implements OnInit, OnDestroy {
     this.errorArticulos.set('');
     this.articulos.set([]);
 
-    this.http.get<ArticuloConocimiento[]>('/api/conocimiento', {
-      ...this.opcionesSesion(),
-      params: q ? { q } : {}
-    }).subscribe({
+    this.conocimientoApi.listar(q, this.token).subscribe({
       next: (articulos) => {
         if (
           sesion !== this.versionSesion ||
@@ -403,16 +348,8 @@ export class App implements OnInit, OnDestroy {
     this.errorArticulos.set('');
 
     const peticion = id === null
-      ? this.http.post<ArticuloConocimiento>(
-          '/api/conocimiento',
-          { ...datos, categoria },
-          this.opcionesSesion()
-        )
-      : this.http.put<ArticuloConocimiento>(
-          `/api/conocimiento/${id}`,
-          datos,
-          this.opcionesSesion()
-        );
+      ? this.conocimientoApi.crear({ ...datos, categoria }, this.token)
+      : this.conocimientoApi.actualizar(id, datos, this.token);
 
     peticion.subscribe({
       next: (articulo) => {
@@ -470,10 +407,7 @@ export class App implements OnInit, OnDestroy {
     this.errorEventos.set('');
     this.cargandoEventos.set(true);
 
-    this.http.get<TicketEvento[]>(
-      `/api/tickets/${ticketId}/eventos`,
-      this.opcionesSesion()
-    ).subscribe({
+    this.ticketsApi.eventos(ticketId, this.token).subscribe({
       next: (eventos) => {
         if (
           sesion !== this.versionSesion ||
@@ -541,10 +475,7 @@ export class App implements OnInit, OnDestroy {
     const version = this.versionSesion;
     this.cargando.set(true);
 
-    this.http.get<Ticket[]>(
-      '/api/tickets',
-      this.opcionesSesion()
-    ).subscribe({
+    this.ticketsApi.listar(this.token).subscribe({
       next: (tickets) => {
         if (version !== this.versionSesion) return;
 
@@ -608,11 +539,7 @@ export class App implements OnInit, OnDestroy {
     this.enviando.set(true);
     this.error.set('');
 
-    this.http.post<Ticket>(
-      '/api/tickets',
-      datos,
-      this.opcionesSesion()
-    ).subscribe({
+    this.ticketsApi.crear(datos, this.token).subscribe({
       next: (ticket) => {
         if (version !== this.versionSesion) return;
 
@@ -657,11 +584,7 @@ export class App implements OnInit, OnDestroy {
     this.enviando.set(true);
     this.error.set('');
 
-    this.http.post<Ticket>(
-      `/api/tickets/${ticket.id}/confirmacion`,
-      { resuelta },
-      this.opcionesSesion()
-    ).subscribe({
+    this.ticketsApi.confirmar(ticket.id, resuelta, this.token).subscribe({
       next: (actualizado) => {
         if (version !== this.versionSesion) return;
 
@@ -713,11 +636,7 @@ export class App implements OnInit, OnDestroy {
     this.enviando.set(true);
     this.error.set('');
 
-    this.http.post<Ticket>(
-      `/api/tickets/${ticket.id}/resolver`,
-      { respuesta },
-      this.opcionesSesion()
-    ).subscribe({
+    this.ticketsApi.resolver(ticket.id, respuesta, this.token).subscribe({
       next: (actualizado) => {
         if (version !== this.versionSesion) return;
 
