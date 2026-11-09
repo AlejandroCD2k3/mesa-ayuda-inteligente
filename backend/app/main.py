@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from sqlmodel import Session, select
 
 from .clasificacion import clasificar_ticket
+from .conocimiento import router as router_conocimiento
 from .sesiones_demo import UsuarioDemo, obtener_usuario_demo, router as router_demo
 from .database import get_session, init_db
 from .soluciones import sugerir_solucion
@@ -23,6 +24,7 @@ app = FastAPI(
 )
 
 app.include_router(router_demo)
+app.include_router(router_conocimiento)
 
 
 # Tickets creados durante los hitos anteriores.

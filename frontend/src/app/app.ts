@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 
 type Categoria = 'AUTO' | 'FUNCIONAL' | 'TÉCNICO' | null;
 type Estado = 'ABIERTO' | 'PENDIENTE_CONFIRMACION' | 'EN_ATENCION' | 'RESUELTO';
-type Vista = 'resumen' | 'solicitudes' | 'soporte';
+type Vista = 'resumen' | 'solicitudes' | 'soporte' | 'conocimiento';
 type Filtro = 'TODOS' | Estado;
 
 type RolDemo = 'estudiante' | 'soporte_funcional' | 'soporte_tecnico';
@@ -14,6 +14,19 @@ export interface UsuarioDemo {
   id: string;
   nombre: string;
   rol: RolDemo;
+}
+
+type CategoriaArticulo = 'AUTO' | 'FUNCIONAL' | 'TÉCNICO';
+
+export interface ArticuloConocimiento {
+  id: number;
+  titulo: string;
+  contenido: string;
+  categoria: CategoriaArticulo;
+  publicado: boolean;
+  creado_por: string;
+  fecha_creacion: string;
+  fecha_actualizacion: string;
 }
 
 export interface TicketEvento {
@@ -53,12 +66,31 @@ export class App implements OnInit, OnDestroy {
   private token = '';
   private versionSesion = 0;
   private versionHistorial = 0;
+  private versionConocimiento = 0;
 
   readonly conexion = signal<'comprobando' | 'conectada' | 'sin-conexion'>('comprobando');
   readonly tickets = signal<Ticket[]>([]);
   readonly eventos = signal<TicketEvento[]>([]);
   readonly cargandoEventos = signal(false);
   readonly errorEventos = signal('');
+  readonly articulos = signal<ArticuloConocimiento[]>([]);
+  readonly busquedaArticulos = signal('');
+  readonly cargandoArticulos = signal(false);
+  readonly guardandoArticulo = signal(false);
+  readonly errorArticulos = signal('');
+  readonly editandoArticuloId = signal<number | null>(null);
+
+  formularioArticulo: {
+    titulo: string;
+    contenido: string;
+    categoria: CategoriaArticulo;
+    publicado: boolean;
+  } = {
+    titulo: '',
+    contenido: '',
+    categoria: 'FUNCIONAL',
+    publicado: true
+  };
   readonly perfiles = signal<UsuarioDemo[]>([]);
   readonly usuario = signal<UsuarioDemo | null>(null);
   readonly iniciando = signal(false);
@@ -135,6 +167,7 @@ export class App implements OnInit, OnDestroy {
     }
     this.versionSesion++;
     this.versionHistorial++;
+    this.versionConocimiento++;
   }
 
   iniciarPerfil(id: string): void {
@@ -153,6 +186,9 @@ export class App implements OnInit, OnDestroy {
 
         this.token = respuesta.token;
         this.usuario.set(respuesta.usuario);
+        this.formularioArticulo.categoria =
+          respuesta.usuario.rol === 'soporte_tecnico'
+            ? 'TÉCNICO' : 'FUNCIONAL';
         this.iniciando.set(false);
         this.cargarTickets();
       },
@@ -170,6 +206,19 @@ export class App implements OnInit, OnDestroy {
   cerrarSesion(): void {
     this.versionSesion++;
     this.versionHistorial++;
+    this.versionConocimiento++;
+    this.articulos.set([]);
+    this.busquedaArticulos.set('');
+    this.cargandoArticulos.set(false);
+    this.guardandoArticulo.set(false);
+    this.errorArticulos.set('');
+    this.editandoArticuloId.set(null);
+    this.formularioArticulo = {
+      titulo: '',
+      contenido: '',
+      categoria: 'FUNCIONAL',
+      publicado: true
+    };
     this.eventos.set([]);
     this.cargandoEventos.set(false);
     this.errorEventos.set('');
@@ -226,6 +275,182 @@ export class App implements OnInit, OnDestroy {
     this.vista.set(vista);
     this.error.set('');
     this.mensaje.set('');
+
+    if (vista === 'conocimiento') {
+      this.cargarArticulos();
+    }
+  }
+
+  cargarArticulos(): void {
+    if (!this.token) return;
+
+    const sesion = this.versionSesion;
+    const consulta = ++this.versionConocimiento;
+    const q = this.busquedaArticulos().trim();
+
+    this.cargandoArticulos.set(true);
+    this.errorArticulos.set('');
+    this.articulos.set([]);
+
+    this.http.get<ArticuloConocimiento[]>('/api/conocimiento', {
+      ...this.opcionesSesion(),
+      params: q ? { q } : {}
+    }).subscribe({
+      next: (articulos) => {
+        if (
+          sesion !== this.versionSesion ||
+          consulta !== this.versionConocimiento
+        ) return;
+
+        this.articulos.set(articulos);
+        this.cargandoArticulos.set(false);
+      },
+      error: (error: HttpErrorResponse) => {
+        if (
+          sesion !== this.versionSesion ||
+          consulta !== this.versionConocimiento
+        ) return;
+
+        this.cargandoArticulos.set(false);
+
+        if (error.status === 401) {
+          this.errorSolicitud(
+            error,
+            'No fue posible consultar el conocimiento.'
+          );
+        } else {
+          this.errorArticulos.set(
+            'No se pudieron consultar los artículos. Reintenta.'
+          );
+        }
+      }
+    });
+  }
+
+  puedeEditarArticulo(articulo: ArticuloConocimiento): boolean {
+    const rol = this.usuario()?.rol;
+
+    return rol === 'soporte_tecnico'
+      ? articulo.categoria === 'TÉCNICO'
+      : rol === 'soporte_funcional' &&
+        articulo.categoria !== 'TÉCNICO';
+  }
+
+  editarArticulo(articulo: ArticuloConocimiento): void {
+    if (!this.puedeEditarArticulo(articulo)) return;
+
+    this.editandoArticuloId.set(articulo.id);
+
+    this.formularioArticulo = {
+      titulo: articulo.titulo,
+      contenido: articulo.contenido,
+      categoria: articulo.categoria,
+      publicado: articulo.publicado
+    };
+
+    this.errorArticulos.set('');
+  }
+
+  nuevoArticulo(): void {
+    this.editandoArticuloId.set(null);
+
+    this.formularioArticulo = {
+      titulo: '',
+      contenido: '',
+      categoria: this.usuario()?.rol === 'soporte_tecnico'
+        ? 'TÉCNICO' : 'FUNCIONAL',
+      publicado: true
+    };
+
+    this.errorArticulos.set('');
+  }
+
+  guardarArticulo(): void {
+    const rol = this.usuario()?.rol;
+
+    if (
+      !this.token ||
+      this.guardandoArticulo() ||
+      (rol !== 'soporte_funcional' && rol !== 'soporte_tecnico')
+    ) return;
+
+    const datos = {
+      titulo: this.formularioArticulo.titulo.trim(),
+      contenido: this.formularioArticulo.contenido.trim(),
+      publicado: this.formularioArticulo.publicado
+    };
+
+    if (!datos.titulo || !datos.contenido) {
+      this.errorArticulos.set(
+        'Escribe el título y el contenido del artículo.'
+      );
+      return;
+    }
+
+    const id = this.editandoArticuloId();
+    const categoria = this.formularioArticulo.categoria;
+
+    if (
+      id === null &&
+      (rol === 'soporte_tecnico'
+        ? categoria !== 'TÉCNICO'
+        : categoria === 'TÉCNICO')
+    ) return;
+
+    const sesion = this.versionSesion;
+
+    this.guardandoArticulo.set(true);
+    this.errorArticulos.set('');
+
+    const peticion = id === null
+      ? this.http.post<ArticuloConocimiento>(
+          '/api/conocimiento',
+          { ...datos, categoria },
+          this.opcionesSesion()
+        )
+      : this.http.put<ArticuloConocimiento>(
+          `/api/conocimiento/${id}`,
+          datos,
+          this.opcionesSesion()
+        );
+
+    peticion.subscribe({
+      next: (articulo) => {
+        if (sesion !== this.versionSesion) return;
+
+        this.articulos.update((actuales) => id === null
+          ? [articulo, ...actuales]
+          : actuales.map(
+              (item) => item.id === id ? articulo : item
+            )
+        );
+
+        this.guardandoArticulo.set(false);
+        this.nuevoArticulo();
+
+        this.mensaje.set(
+          id === null
+            ? 'Artículo creado correctamente.'
+            : 'Artículo actualizado.'
+        );
+      },
+      error: (error: HttpErrorResponse) => {
+        if (sesion !== this.versionSesion) return;
+
+        this.guardandoArticulo.set(false);
+
+        if (error.status === 401) {
+          this.errorSolicitud(
+            error,
+            'No se pudo guardar el artículo.'
+          );
+        } else {
+          this.errorArticulos.set(
+            'No se pudo guardar el artículo. Revisa los datos y permisos.'
+          );
+        }
+      }
+    });
   }
 
   seleccionar(ticket: Ticket): void {

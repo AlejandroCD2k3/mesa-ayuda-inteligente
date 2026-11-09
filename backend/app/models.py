@@ -52,3 +52,16 @@ class TicketEvento(SQLModel, table=True):
     detalle: str
     actor: str
     fecha: datetime = Field(default_factory=ahora_utc)
+
+
+class ArticuloConocimiento(SQLModel, table=True):
+    __tablename__ = "articulos_conocimiento"
+
+    id: int | None = Field(default=None, primary_key=True)
+    titulo: str
+    contenido: str
+    categoria: CategoriaTicket
+    publicado: bool = Field(default=True)
+    creado_por: str
+    fecha_creacion: datetime = Field(default_factory=ahora_utc)
+    fecha_actualizacion: datetime = Field(default_factory=ahora_utc)

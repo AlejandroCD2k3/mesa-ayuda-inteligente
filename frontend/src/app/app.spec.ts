@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { App, Ticket, TicketEvento, UsuarioDemo } from './app';
+import { App, ArticuloConocimiento, Ticket, TicketEvento, UsuarioDemo } from './app';
 
 const perfiles: UsuarioDemo[] = [
   { id: 'estudiante.demo', nombre: 'Estudiante A', rol: 'estudiante' },
@@ -17,6 +17,17 @@ const eventoCreacion: TicketEvento = {
   detalle: 'Solicitud registrada.',
   actor: 'estudiante.demo',
   fecha: '2026-11-08T20:30:00'
+};
+
+const articuloPrueba: ArticuloConocimiento = {
+  id: 10,
+  titulo: 'Acceso a MAIA',
+  contenido: 'Verifica la contraseña.',
+  categoria: 'FUNCIONAL',
+  publicado: true,
+  creado_por: 'soporte.funcional',
+  fecha_creacion: '2026-11-08T20:30:00',
+  fecha_actualizacion: '2026-11-08T20:30:00'
 };
 
 const funcional: Ticket = {
@@ -375,5 +386,156 @@ describe('Mesa de Ayuda Inteligente', () => {
 
     expect(fixture.nativeElement.textContent)
       .toContain('No hay eventos registrados');
+  });
+
+
+  it('consulta artículos y busca soluciones', () => {
+    const { app, fixture, http } = iniciar([]);
+
+    app.cambiarVista('conocimiento');
+
+    const listado = http.expectOne('/api/conocimiento');
+
+    expect(listado.request.headers.get('Authorization'))
+      .toBe('Bearer token-test');
+
+    listado.flush([articuloPrueba]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent)
+      .toContain('Verifica la contraseña.');
+
+    app.busquedaArticulos.set('CONTRASEÑA');
+    app.cargarArticulos();
+
+    const busqueda = http.expectOne(
+      req => req.url === '/api/conocimiento'
+        && req.params.get('q') === 'CONTRASEÑA'
+    );
+
+    busqueda.flush([articuloPrueba]);
+
+    expect(app.articulos()).toHaveLength(1);
+  });
+
+  it('no permite editar desde el perfil estudiante', () => {
+    const { app, fixture, http } = iniciar([]);
+
+    app.cambiarVista('conocimiento');
+
+    http.expectOne('/api/conocimiento')
+      .flush([articuloPrueba]);
+
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('.conocimiento-editor')
+    ).toBeNull();
+
+    app.guardarArticulo();
+
+    http.expectNone(
+      req => req.method === 'POST'
+        && req.url === '/api/conocimiento'
+    );
+  });
+
+  it('soporte funcional crea un artículo', () => {
+    const { app, http } = iniciar([], perfiles[2]);
+
+    app.cambiarVista('conocimiento');
+
+    http.expectOne('/api/conocimiento').flush([]);
+
+    app.formularioArticulo.titulo = 'Acceso a MAIA';
+    app.formularioArticulo.contenido = 'Verifica la contraseña.';
+
+    app.guardarArticulo();
+
+    const solicitud = http.expectOne('/api/conocimiento');
+
+    expect(solicitud.request.method).toBe('POST');
+    expect(solicitud.request.headers.get('Authorization'))
+      .toBe('Bearer token-test');
+    expect(solicitud.request.body.categoria).toBe('FUNCIONAL');
+
+    solicitud.flush(articuloPrueba);
+
+    expect(app.articulos()).toHaveLength(1);
+    expect(app.formularioArticulo.titulo).toBe('');
+  });
+
+  it('soporte técnico edita y publica artículos', () => {
+    const tecnico = {
+      ...articuloPrueba,
+      id: 11,
+      categoria: 'TÉCNICO' as const,
+      publicado: false
+    };
+
+    const { app, http } = iniciar([], perfiles[3]);
+
+    app.cambiarVista('conocimiento');
+
+    http.expectOne('/api/conocimiento').flush([tecnico]);
+
+    app.editarArticulo(tecnico);
+
+    app.formularioArticulo.contenido =
+      'Reinicia el servicio y verifica.';
+
+    app.formularioArticulo.publicado = true;
+    app.guardarArticulo();
+
+    const solicitud = http.expectOne('/api/conocimiento/11');
+
+    expect(solicitud.request.method).toBe('PUT');
+    expect(solicitud.request.body)
+      .not.toHaveProperty('categoria');
+
+    solicitud.flush({
+      ...tecnico,
+      contenido: 'Reinicia el servicio y verifica.',
+      publicado: true
+    });
+
+    expect(app.articulos()[0].publicado).toBe(true);
+  });
+
+  it('no mezcla artículos de diferentes perfiles', () => {
+    const { app, http } = iniciar([]);
+
+    app.cambiarVista('conocimiento');
+
+    const anterior = http.expectOne('/api/conocimiento');
+
+    app.cerrarSesion();
+
+    anterior.flush([articuloPrueba]);
+
+    expect(app.articulos()).toEqual([]);
+    expect(app.usuario()).toBeNull();
+  });
+
+  it('permite reintentar una búsqueda fallida', () => {
+    const { app, http } = iniciar([]);
+
+    app.cambiarVista('conocimiento');
+
+    http.expectOne('/api/conocimiento').flush(
+      { detail: 'Error' },
+      { status: 503, statusText: 'Unavailable' }
+    );
+
+    expect(app.errorArticulos())
+      .toContain('No se pudieron');
+
+    app.cargarArticulos();
+
+    http.expectOne('/api/conocimiento')
+      .flush([articuloPrueba]);
+
+    expect(app.errorArticulos()).toBe('');
+    expect(app.articulos()).toHaveLength(1);
   });
 });
