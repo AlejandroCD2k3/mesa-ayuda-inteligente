@@ -1,0 +1,88 @@
+{
+  "articulos": [
+    {
+      "titulo": "Consultar actividades de un curso virtual",
+      "categoria": "AUTO",
+      "contenido": "Para localizar tus actividades, ingresa al aula virtual, abre el curso correspondiente y busca la sección de actividades. Revisa las instrucciones y fechas que aparezcan en cada actividad. Los nombres exactos pueden variar entre cursos."
+    },
+    {
+      "titulo": "Localizar materiales de estudio",
+      "categoria": "AUTO",
+      "contenido": "Abre tu curso virtual y revisa los apartados de contenidos, recursos o materiales de estudio. Si un recurso no aparece o no puedes abrirlo, registra un ticket con el nombre del curso y del recurso."
+    },
+    {
+      "titulo": "Revisar fechas de entrega",
+      "categoria": "AUTO",
+      "contenido": "Consulta la fecha de entrega indicada en cada actividad. Si el curso dispone de calendario, puedes contrastar allí las fechas. Si encuentras una inconsistencia, solicita validación a soporte funcional."
+    },
+    {
+      "titulo": "Consultar comentarios de una actividad",
+      "categoria": "AUTO",
+      "contenido": "Abre el curso y la actividad correspondiente. Si existe una valoración publicada, revisa el apartado de resultados o comentarios disponible. Si no aparece información, registra una solicitud de soporte funcional."
+    },
+    {
+      "titulo": "Curso que no aparece en el aula virtual",
+      "categoria": "FUNCIONAL",
+      "contenido": "Si un curso no aparece, registra una solicitud indicando el nombre del curso, el período y lo que observas en pantalla. Soporte funcional deberá verificar la situación. Este artículo no confirma matrículas ni modifica inscripciones."
+    },
+    {
+      "titulo": "Consultas sobre inscripciones o registros académicos",
+      "categoria": "FUNCIONAL",
+      "contenido": "Las solicitudes relacionadas con inscripciones y registros académicos requieren revisión humana. Describe la situación sin incluir documentos personales ni contraseñas. Soporte funcional indicará el procedimiento correspondiente."
+    },
+    {
+      "titulo": "Error técnico al adjuntar un archivo",
+      "categoria": "TÉCNICO",
+      "contenido": "Si falla una carga de archivo, registra el mensaje de error, la actividad y el tipo de archivo, evitando información sensible. Soporte técnico deberá analizar el problema. No se presupone una solución automática."
+    },
+    {
+      "titulo": "Aula virtual que no carga",
+      "categoria": "TÉCNICO",
+      "contenido": "Si el aula no carga, comprueba tu conexión y vuelve a intentarlo. Si el problema continúa, registra un ticket indicando el navegador, la hora aproximada y el error observado. Soporte técnico investigará la incidencia. Nunca compartas contraseñas."
+    }
+  ],
+  "tickets": [
+    {
+      "solicitante": "estudiante.demo",
+      "origen_sistema": "MAIA",
+      "asunto": "No encuentro mis actividades del curso",
+      "descripcion": "Quiero saber dónde consultar las actividades del aula virtual.",
+      "categoria": "AUTO",
+      "estado": "PENDIENTE_CONFIRMACION",
+      "responsable": null,
+      "motivo_clasificacion": "Existe una guía publicada para consultar actividades.",
+      "articulo_respuesta": "Consultar actividades de un curso virtual"
+    },
+    {
+      "solicitante": "estudiante.alterno",
+      "origen_sistema": "MAIA",
+      "asunto": "El curso no aparece en mi aula",
+      "descripcion": "Un curso que esperaba ver no figura en mi lista.",
+      "categoria": "FUNCIONAL",
+      "estado": "EN_ATENCION",
+      "responsable": "soporte_funcional",
+      "motivo_clasificacion": "La consulta necesita validación funcional."
+    },
+    {
+      "solicitante": "estudiante.demo",
+      "origen_sistema": "MAIA",
+      "asunto": "Error al adjuntar un archivo",
+      "descripcion": "El aula muestra un mensaje de error al cargar mi entrega.",
+      "categoria": "TÉCNICO",
+      "estado": "EN_ATENCION",
+      "responsable": "soporte_tecnico",
+      "motivo_clasificacion": "La incidencia necesita revisión técnica."
+    },
+    {
+      "solicitante": "estudiante.alterno",
+      "origen_sistema": "MAIA",
+      "asunto": "Consulta sobre contenidos del curso",
+      "descripcion": "Necesitaba orientación para encontrar un recurso del curso.",
+      "categoria": "FUNCIONAL",
+      "estado": "RESUELTO",
+      "responsable": "soporte_funcional",
+      "motivo_clasificacion": "Consulta atendida por soporte funcional.",
+      "respuesta_atencion": "Se explicó cómo buscar los recursos del curso y el caso quedó resuelto."
+    }
+  ]
+}
