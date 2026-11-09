@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 
 from .clasificacion import clasificar_ticket
 from .conocimiento import router as router_conocimiento
+from .ia import analizar_ticket_con_ia
 from .sesiones_demo import UsuarioDemo, obtener_usuario_demo, router as router_demo
 from .database import get_session, init_db
 from .soluciones import sugerir_solucion
@@ -78,14 +79,22 @@ def health():
     return {"status": "ok"}
 
 
-def preparar_ticket(ticket: Ticket) -> None:
+def preparar_ticket(ticket: Ticket, session: Session | None = None) -> None:
     categoria, motivo = clasificar_ticket(
         ticket.origen_sistema, ticket.asunto, ticket.descripcion
     )
 
+    respuesta = sugerir_solucion(categoria)
+
+    if session is not None:
+        resultado_ia = analizar_ticket_con_ia(session, ticket)
+
+        if resultado_ia is not None:
+            categoria, motivo, respuesta = resultado_ia
+
     ticket.categoria = categoria
     ticket.motivo_clasificacion = motivo
-    ticket.respuesta_sugerida = sugerir_solucion(categoria)
+    ticket.respuesta_sugerida = respuesta
 
     if ticket.respuesta_sugerida:
         ticket.estado = EstadoTicket.PENDIENTE_CONFIRMACION
@@ -129,7 +138,7 @@ def crear_ticket(
         solicitante=usuario.id,
     )
 
-    preparar_ticket(ticket)
+    preparar_ticket(ticket, session)
 
     session.add(ticket)
     session.flush()
