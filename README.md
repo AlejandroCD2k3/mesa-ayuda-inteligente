@@ -199,3 +199,30 @@ clasificador tradicional.
 La autenticacion incluida corresponde a un prototipo
 academico y no debe exponerse publicamente como
 un sistema de produccion.
+
+### Datos ficticios preparados para evaluación
+
+La instalación incluye el catálogo editable `backend/datos_demo.json`,
+con 8 artículos publicados y 4 tickets ficticios, con sus eventos.
+
+Para comenzar desde una instalación nueva:
+
+1. Copiar `backend/.env.example` como `backend/.env`.
+2. Introducir la clave de prueba en `LLM_API_KEY`.
+3. Ejecutar `iniciar-mesa-ayuda-evaluacion.bat`.
+
+Este lanzador agrega los datos automáticamente si la base está vacía.
+No modifica una base de datos que ya contiene registros.
+
+Para restaurar manualmente el catálogo de demostración, cerrar
+los servidores y ejecutar desde `backend`:
+
+`uv run --locked python -m scripts.preparar_demo --reset`
+
+Esta operación respalda primero SQLite en la carpeta local
+`MesaAyuda/respaldos`, fuera del repositorio, y después reemplaza
+los artículos, tickets y eventos existentes.
+
+Los datos son ficticios y no representan procedimientos
+institucionales oficiales. La clave privada nunca se incluye
+en el catálogo ni en GitHub.
