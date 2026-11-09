@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { App, Ticket, UsuarioDemo } from './app';
+import { App, Ticket, TicketEvento, UsuarioDemo } from './app';
 
 const perfiles: UsuarioDemo[] = [
   { id: 'estudiante.demo', nombre: 'Estudiante A', rol: 'estudiante' },
@@ -9,6 +9,15 @@ const perfiles: UsuarioDemo[] = [
   { id: 'soporte.funcional', nombre: 'Soporte funcional', rol: 'soporte_funcional' },
   { id: 'soporte.tecnico', nombre: 'Soporte técnico', rol: 'soporte_tecnico' }
 ];
+
+const eventoCreacion: TicketEvento = {
+  id: 1,
+  ticket_id: 1,
+  tipo: 'CREACION',
+  detalle: 'Solicitud registrada.',
+  actor: 'estudiante.demo',
+  fecha: '2026-11-08T20:30:00'
+};
 
 const funcional: Ticket = {
   id: 1,
@@ -113,6 +122,7 @@ describe('Mesa de Ayuda Inteligente', () => {
     expect(solicitud.request.headers.get('Authorization'))
       .toBe('Bearer token-test');
     solicitud.flush(funcional);
+    http.expectOne('/api/tickets/1/eventos').flush([eventoCreacion]);
     expect(app.tickets().length).toBe(1);
     expect(app.seleccion()?.id).toBe(1);
   });
@@ -120,28 +130,33 @@ describe('Mesa de Ayuda Inteligente', () => {
   it('confirma una solución automática y marca el ticket resuelto', () => {
     const { app, http } = iniciar([automatico]);
     app.seleccionar(automatico);
+    http.expectOne('/api/tickets/2/eventos').flush([]);
     app.confirmar(true);
     const solicitud = http.expectOne('/api/tickets/2/confirmacion');
     expect(solicitud.request.method).toBe('POST');
     expect(solicitud.request.body).toEqual({ resuelta: true });
     solicitud.flush({ ...automatico, estado: 'RESUELTO' });
+    http.expectOne('/api/tickets/2/eventos').flush([]);
     expect(app.seleccion()?.estado).toBe('RESUELTO');
   });
 
   it('permite rechazar una sugerencia y remitirla a soporte', () => {
     const { app, http } = iniciar([automatico]);
     app.seleccionar(automatico);
+    http.expectOne('/api/tickets/2/eventos').flush([]);
     app.confirmar(false);
     http.expectOne('/api/tickets/2/confirmacion').flush({
       ...automatico, categoria: 'FUNCIONAL', estado: 'EN_ATENCION',
       responsable: 'soporte_funcional'
     });
+    http.expectOne('/api/tickets/2/eventos').flush([]);
     expect(app.seleccion()?.responsable).toBe('soporte_funcional');
   });
 
   it('registra la respuesta humana y cierra el caso', () => {
     const { app, http } = iniciar([funcional], perfiles[2]);
     app.seleccionar(funcional);
+    http.expectOne('/api/tickets/1/eventos').flush([]);
     app.respuestaAtencion = 'Se restableció el acceso.';
     app.resolver();
     const solicitud = http.expectOne('/api/tickets/1/resolver');
@@ -149,6 +164,7 @@ describe('Mesa de Ayuda Inteligente', () => {
     solicitud.flush({
       ...funcional, estado: 'RESUELTO', respuesta_atencion: 'Se restableció el acceso.'
     });
+    http.expectOne('/api/tickets/1/eventos').flush([]);
     expect(app.seleccion()?.estado).toBe('RESUELTO');
     expect(app.respuestaAtencion).toBe('');
   });
@@ -194,6 +210,8 @@ describe('Mesa de Ayuda Inteligente', () => {
     const { app, http } = iniciar([funcional]);
 
     app.seleccionar(funcional);
+    const historialAnterior =
+      http.expectOne('/api/tickets/1/eventos');
     app.cargarTickets();
 
     const anterior = http.expectOne('/api/tickets');
@@ -204,8 +222,10 @@ describe('Mesa de Ayuda Inteligente', () => {
     expect(app.seleccion()).toBeNull();
 
     anterior.flush([funcional]);
+    historialAnterior.flush([eventoCreacion]);
 
     expect(app.tickets()).toEqual([]);
+    expect(app.eventos()).toEqual([]);
   });
 
   it('solicita nuevo perfil cuando vence la sesion', () => {
@@ -220,5 +240,140 @@ describe('Mesa de Ayuda Inteligente', () => {
 
     expect(app.usuario()).toBeNull();
     expect(app.error()).toContain('sesión venció');
+  });
+
+
+  it('muestra el historial con actor y fecha', () => {
+    const { app, http, fixture } = iniciar([funcional]);
+
+    app.cambiarVista('solicitudes');
+    app.seleccionar(funcional);
+
+    const peticion = http.expectOne('/api/tickets/1/eventos');
+
+    expect(peticion.request.headers.get('Authorization'))
+      .toBe('Bearer token-test');
+
+    peticion.flush([eventoCreacion]);
+    fixture.detectChanges();
+
+    expect(app.eventos()[0].tipo).toBe('CREACION');
+
+    expect(fixture.nativeElement.textContent)
+      .toContain('Historial de actividad');
+
+    expect(fixture.nativeElement.textContent)
+      .toContain('Solicitud registrada');
+
+    expect(fixture.nativeElement.textContent)
+      .toContain('Estudiante A');
+
+    expect(app.fechaEvento(eventoCreacion.fecha))
+      .toBe('2026-11-08T20:30:00Z');
+  });
+
+  it('no mezcla eventos al cambiar de ticket', () => {
+    const segundo = {
+      ...funcional,
+      id: 3,
+      asunto: 'Otro ticket'
+    };
+
+    const { app, http } = iniciar([funcional, segundo]);
+
+    app.seleccionar(funcional);
+    const viejo = http.expectOne('/api/tickets/1/eventos');
+
+    app.seleccionar(segundo);
+    const nuevo = http.expectOne('/api/tickets/3/eventos');
+
+    nuevo.flush([{
+      ...eventoCreacion,
+      id: 2,
+      ticket_id: 3
+    }]);
+
+    viejo.flush([eventoCreacion]);
+
+    expect(app.eventos()).toHaveLength(1);
+    expect(app.eventos()[0].ticket_id).toBe(3);
+  });
+
+  it('descarta el historial al cambiar de perfil', () => {
+    const { app, http } = iniciar([funcional]);
+
+    app.seleccionar(funcional);
+
+    const anterior = http.expectOne(
+      '/api/tickets/1/eventos'
+    );
+
+    app.cerrarSesion();
+    anterior.flush([eventoCreacion]);
+
+    expect(app.eventos()).toEqual([]);
+    expect(app.seleccion()).toBeNull();
+  });
+
+  it('permite reintentar una consulta fallida', () => {
+    const { app, http } = iniciar([funcional]);
+
+    app.seleccionar(funcional);
+
+    http.expectOne('/api/tickets/1/eventos').flush(
+      { detail: 'Error' },
+      { status: 503, statusText: 'Unavailable' }
+    );
+
+    expect(app.errorEventos()).toContain('No fue posible');
+
+    app.cargarEventos(funcional.id);
+
+    http.expectOne('/api/tickets/1/eventos')
+      .flush([eventoCreacion]);
+
+    expect(app.errorEventos()).toBe('');
+    expect(app.eventos()).toHaveLength(1);
+  });
+
+  it('actualiza eventos si cambia el ticket', () => {
+    const { app, http } = iniciar([funcional]);
+
+    app.seleccionar(funcional);
+
+    http.expectOne('/api/tickets/1/eventos')
+      .flush([eventoCreacion]);
+
+    app.cargarTickets();
+
+    http.expectOne('/api/tickets').flush([{
+      ...funcional,
+      estado: 'RESUELTO',
+      fecha_actualizacion: '2026-11-08T21:00:00Z'
+    }]);
+
+    http.expectOne('/api/tickets/1/eventos').flush([
+      eventoCreacion,
+      {
+        ...eventoCreacion,
+        id: 2,
+        tipo: 'RESOLUCION'
+      }
+    ]);
+
+    expect(app.eventos()).toHaveLength(2);
+  });
+
+  it('muestra estado vacio para solicitudes antiguas', () => {
+    const { app, http, fixture } = iniciar([funcional]);
+
+    app.cambiarVista('solicitudes');
+    app.seleccionar(funcional);
+
+    http.expectOne('/api/tickets/1/eventos').flush([]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent)
+      .toContain('No hay eventos registrados');
   });
 });

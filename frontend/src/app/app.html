@@ -177,6 +177,58 @@
           </section>
         </div>
       }
+      @if (vista() !== 'resumen' && seleccion(); as ticket) {
+        <section
+          class="panel historial-panel"
+          aria-label="Historial de la solicitud"
+        >
+          <div class="panel-cabecera">
+            <div>
+              <p class="sobrelinea">
+                SEGUIMIENTO DEL TICKET #{{ ticket.id }}
+              </p>
+              <h2>Historial de actividad</h2>
+            </div>
+          </div>
+
+          @if (cargandoEventos()) {
+            <p class="historial-mensaje" role="status">
+              Cargando historial...
+            </p>
+          } @else if (errorEventos()) {
+            <p class="historial-mensaje" role="alert">
+              {{ errorEventos() }}
+            </p>
+            <button
+              class="enlace"
+              type="button"
+              (click)="cargarEventos(ticket.id)"
+            >
+              Reintentar
+            </button>
+          } @else if (eventos().length === 0) {
+            <p class="historial-mensaje">
+              No hay eventos registrados para esta solicitud.
+            </p>
+          } @else {
+            <ol class="historial-lista">
+              @for (evento of eventos(); track evento.id) {
+                <li class="historial-evento">
+                  <strong>
+                    {{ etiquetaEvento(evento.tipo) }}
+                  </strong>
+                  <p>{{ evento.detalle }}</p>
+                  <small>
+                    {{ nombreActor(evento.actor) }}
+                    ·
+                    {{ fechaEvento(evento.fecha) | date:'dd/MM/yyyy, HH:mm' }}
+                  </small>
+                </li>
+              }
+            </ol>
+          }
+        </section>
+      }
     </main>
   </div>
 </div>
