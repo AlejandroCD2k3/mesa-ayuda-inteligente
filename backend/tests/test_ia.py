@@ -236,6 +236,7 @@ def test_error_de_cuota_usa_fallback(monkeypatch):
 def test_edicion_no_repite_llamadas_llm(monkeypatch):
     from fastapi.testclient import TestClient
     from app import database, main
+    from app.api import tickets as api_tickets
 
     motor = create_engine(
         "sqlite://",
@@ -257,7 +258,7 @@ def test_edicion_no_repite_llamadas_llm(monkeypatch):
         )
 
     monkeypatch.setattr(
-        main,
+        api_tickets,
         "analizar_ticket_con_ia",
         ia_simulada,
     )
@@ -294,49 +295,15 @@ def test_edicion_no_repite_llamadas_llm(monkeypatch):
             assert len(llamadas) == 1
             assert creacion.json()["estado"] == "EN_ATENCION"
 
-            ruta_edicion = next(
-                (
-                    ruta for ruta in main.app.routes
-                    if "{ticket_id}" in getattr(ruta, "path", "")
-                    and (
-                        {"PUT", "PATCH"}
-                        & getattr(ruta, "methods", set())
-                    )
-                    and "preparar_ticket" in getattr(
-                        getattr(ruta, "endpoint", None),
-                        "__code__",
-                        type("SinCodigo", (), {"co_names": ()})(),
-                    ).co_names
-                ),
-                None,
-            )
+            id_creado = creacion.json()["id"]
 
-            assert ruta_edicion is not None, (
-                "No se encontro la ruta de edicion."
-            )
-
-            metodo = (
-                "PATCH"
-                if "PATCH" in ruta_edicion.methods
-                else "PUT"
-            )
-
-            direccion = ruta_edicion.path.replace(
-                "{ticket_id}",
-                str(creacion.json()["id"]),
-            )
-
-            edicion = cliente.request(
-                metodo,
-                direccion,
+            edicion = cliente.patch(
+                f"/api/tickets/{id_creado}",
                 headers=headers,
                 json={
-                    "descripcion": (
-                        "El error ficticio persiste."
-                    )
+                    "descripcion": "El error ficticio persiste."
                 },
             )
-
             assert edicion.status_code == 200, edicion.text
 
             # Una llamada al crear, ninguna adicional al editar.
